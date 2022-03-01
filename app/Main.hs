@@ -39,17 +39,8 @@ main = do
     test <- ( Cfg.require config "test" :: IO T.Text )
     T.putStrLn test
     
-
-    --myCycle config
-
 create_conf_cfg = do
     writeFile "conf.cfg" "usr_config = \"usr_config.cfg\""
-
-myCycle config = do
-    v <- ( Cfg.require config "usr_config" :: IO T.Text )
-    T.putStrLn v
-    threadDelay 2000000
-    myCycle config
 
 onError a = putStrLn "SHOWING ERROR"
 
