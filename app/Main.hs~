@@ -35,7 +35,6 @@ main = do
     (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
     --      extract path to user configuration file
     usr_config_path <- ( Cfg.require config "usr_config" :: IO T.Text )
-       
 
     myCycle config
 

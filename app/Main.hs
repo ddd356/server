@@ -28,7 +28,6 @@ main = do
     exist_conf_cfg <- doesFileExist "conf.cfg"
     when (not exist_conf_cfg) create_conf_cfg
     
-    
     --  load configuration
 
     --      loading conf.cfg
