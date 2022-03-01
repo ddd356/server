@@ -39,8 +39,3 @@ create_conf_cfg = do
     writeFile "conf.cfg" "import \"usr_config.cfg\""
 
 onError a = putStrLn "SHOWING ERROR"
-
---main :: IO ()
---main = do
---    putStrLn $ "http://localhost:8080/"
---    run 8080 app
