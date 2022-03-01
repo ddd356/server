@@ -24,6 +24,9 @@ dependencies:
 - wai
 - warp
 - http-types
+- configurator
+- text
+- directory
 
 library:
   source-dirs: src
