@@ -38,9 +38,10 @@ main = do
 
     --      check test configuration from imported usr_config
     test <- ( Cfg.require config "test" :: IO T.Text )
+    T.putStrLn test
     
 
-    myCycle config
+    --myCycle config
 
 create_conf_cfg = do
     writeFile "conf.cfg" "usr_config = \"usr_config.cfg\""

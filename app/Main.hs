@@ -23,8 +23,7 @@ app _ respond = do
 
 main :: IO ()
 main = do
-    --  check conf.cfg existense
-    --  create if it is not
+    --  check conf.cfg existense; create if it is not
     exist_conf_cfg <- doesFileExist "conf.cfg"
     when (not exist_conf_cfg) create_conf_cfg
     
