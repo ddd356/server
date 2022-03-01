@@ -1,1 +1,2 @@
-usr_config = "usr_config.cfg"
+import "E:\\server_config\\usr_config.cfg"
+# usr_config = "E:\\server_config\\usr_config.cfg"
