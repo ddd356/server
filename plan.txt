@@ -1,5 +1,3 @@
 check conf.cfg existense; create if it is not
 load configuration
     loading conf.cfg
-    --extract path to user configuration file
-    check test configuration from imported usr_config

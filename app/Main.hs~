@@ -40,7 +40,7 @@ main = do
     T.putStrLn test
     
 create_conf_cfg = do
-    writeFile "conf.cfg" "usr_config = \"usr_config.cfg\""
+    writeFile "conf.cfg" "import \"usr_config.cfg\""
 
 onError a = putStrLn "SHOWING ERROR"
 

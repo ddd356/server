@@ -32,13 +32,6 @@ main = do
     --      loading conf.cfg
     (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
 
-    --      extract path to user configuration file
-    --usr_config_path <- ( Cfg.require config "usr_config" :: IO T.Text )
-
-    --      check test configuration from imported usr_config
-    test <- ( Cfg.require config "test" :: IO T.Text )
-    T.putStrLn test
-    
 create_conf_cfg = do
     writeFile "conf.cfg" "import \"usr_config.cfg\""
 
