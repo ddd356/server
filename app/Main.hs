@@ -32,6 +32,9 @@ main = do
     --      loading conf.cfg
     (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
 
+    -- run server
+    run 8080 app
+
 create_conf_cfg = do
     writeFile "conf.cfg" "import \"usr_config.cfg\""
 
