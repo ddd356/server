@@ -1,4 +1,19 @@
+app ***
+
+print info message to command line
+
+main ***
+
 check conf.cfg existense; create if it is not
 load configuration
     loading conf.cfg
+check news database existense
 run server
+
+
+create_conf_cfg ***
+
+write new conf file
+
+
+check_news_db_existense  ***
