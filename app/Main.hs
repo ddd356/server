@@ -15,13 +15,29 @@ import Control.Monad ( when )
 import Database.PostgreSQL.Simple ( connect, ConnectInfo(..) )
 
 app :: Application
-app request respond = do
-    -- print info message to command line
-    putStrLn "I've done some IO here"
-    respond $ responseLBS
-        status200
-        [("Content-Type", "text/plain")]
-        "Hello, Web!"
+app request respond
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" = do
+        -- return posts
+        putStrLn "I've done some IO here"
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            "Here must be returned posts"
+    | length (pathInfo request) == 1 && last (pathInfo request) == "auth" = do
+        -- print message about wrong guard
+        putStrLn "I've done some IO here"
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            "Here must be an auth endpoint"
+        
+    | otherwise = do
+        -- print info message to command line
+        putStrLn "I've done some IO here"
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            "Wrong path"
 
 main :: IO ()
 main = do
