@@ -27,6 +27,7 @@ dependencies:
 - configurator
 - text
 - directory
+- postgresql-simple
 
 library:
   source-dirs: src

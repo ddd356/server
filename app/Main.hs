@@ -12,9 +12,11 @@ import qualified Data.Text.IO as T ( putStrLn )
 import Control.Concurrent ( threadDelay )
 import System.Directory ( doesFileExist )
 import Control.Monad ( when )
+import Database.PostgreSQL.Simple ( connect, ConnectInfo(..) )
 
 app :: Application
-app _ respond = do
+app request respond = do
+    -- print info message to command line
     putStrLn "I've done some IO here"
     respond $ responseLBS
         status200
@@ -32,8 +34,22 @@ main = do
     --      loading conf.cfg
     (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
 
+    
+    -- check news database existense
+    let news_db_exists = check_news_db_existense
+    putStrLn $ "news_db_exists = " ++ (show news_db_exists)
+
     -- run server
     run 8080 app
 
 create_conf_cfg = do
+    -- write new conf file
     writeFile "conf.cfg" "import \"usr_config.cfg\""
+
+check_news_db_existense :: Bool
+check_news_db_existense = do
+    --let host = confGetPostgresqlHost
+    --let connection = connect ( ConnectInfo host 5432 "" "" "" )
+    True
+
+--confGetPostgresqlHost :: String

@@ -24,3 +24,5 @@ cabal.project.local~
 *~
 *.swp
 Session.vim
+endpoints.txt
+plan.txt

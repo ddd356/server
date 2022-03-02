@@ -5,35 +5,35 @@ set cpo&vim
 inoremap <C-U> u
 map! <S-Insert> *
 vmap  "*d
-omap <silent> % <Plug>(MatchitOperationForward)
-xmap <silent> % <Plug>(MatchitVisualForward)
 nmap <silent> % <Plug>(MatchitNormalForward)
+xmap <silent> % <Plug>(MatchitVisualForward)
+omap <silent> % <Plug>(MatchitOperationForward)
 map Q gq
-omap <silent> [% <Plug>(MatchitOperationMultiBackward)
-xmap <silent> [% <Plug>(MatchitVisualMultiBackward)
 nmap <silent> [% <Plug>(MatchitNormalMultiBackward)
-omap <silent> ]% <Plug>(MatchitOperationMultiForward)
-xmap <silent> ]% <Plug>(MatchitVisualMultiForward)
+xmap <silent> [% <Plug>(MatchitVisualMultiBackward)
+omap <silent> [% <Plug>(MatchitOperationMultiBackward)
 nmap <silent> ]% <Plug>(MatchitNormalMultiForward)
+xmap <silent> ]% <Plug>(MatchitVisualMultiForward)
+omap <silent> ]% <Plug>(MatchitOperationMultiForward)
 xmap a% <Plug>(MatchitVisualTextObject)
-omap <silent> g% <Plug>(MatchitOperationBackward)
-xmap <silent> g% <Plug>(MatchitVisualBackward)
 nmap <silent> g% <Plug>(MatchitNormalBackward)
+xmap <silent> g% <Plug>(MatchitVisualBackward)
+omap <silent> g% <Plug>(MatchitOperationBackward)
 vmap gx <Plug>NetrwBrowseXVis
 nmap gx <Plug>NetrwBrowseX
-xmap <silent> <Plug>(MatchitVisualTextObject) <Plug>(MatchitVisualMultiBackward)o<Plug>(MatchitVisualMultiForward)
-onoremap <silent> <Plug>(MatchitOperationMultiForward) :call matchit#MultiMatch("W",  "o")
-onoremap <silent> <Plug>(MatchitOperationMultiBackward) :call matchit#MultiMatch("bW", "o")
-xnoremap <silent> <Plug>(MatchitVisualMultiForward) :call matchit#MultiMatch("W",  "n")m'gv``
-xnoremap <silent> <Plug>(MatchitVisualMultiBackward) :call matchit#MultiMatch("bW", "n")m'gv``
-nnoremap <silent> <Plug>(MatchitNormalMultiForward) :call matchit#MultiMatch("W",  "n")
-nnoremap <silent> <Plug>(MatchitNormalMultiBackward) :call matchit#MultiMatch("bW", "n")
-onoremap <silent> <Plug>(MatchitOperationBackward) :call matchit#Match_wrapper('',0,'o')
-onoremap <silent> <Plug>(MatchitOperationForward) :call matchit#Match_wrapper('',1,'o')
-xnoremap <silent> <Plug>(MatchitVisualBackward) :call matchit#Match_wrapper('',0,'v')m'gv``
-xnoremap <silent> <Plug>(MatchitVisualForward) :call matchit#Match_wrapper('',1,'v')m'gv``
-nnoremap <silent> <Plug>(MatchitNormalBackward) :call matchit#Match_wrapper('',0,'n')
 nnoremap <silent> <Plug>(MatchitNormalForward) :call matchit#Match_wrapper('',1,'n')
+nnoremap <silent> <Plug>(MatchitNormalBackward) :call matchit#Match_wrapper('',0,'n')
+xnoremap <silent> <Plug>(MatchitVisualForward) :call matchit#Match_wrapper('',1,'v')m'gv``
+xnoremap <silent> <Plug>(MatchitVisualBackward) :call matchit#Match_wrapper('',0,'v')m'gv``
+onoremap <silent> <Plug>(MatchitOperationForward) :call matchit#Match_wrapper('',1,'o')
+onoremap <silent> <Plug>(MatchitOperationBackward) :call matchit#Match_wrapper('',0,'o')
+nnoremap <silent> <Plug>(MatchitNormalMultiBackward) :call matchit#MultiMatch("bW", "n")
+nnoremap <silent> <Plug>(MatchitNormalMultiForward) :call matchit#MultiMatch("W",  "n")
+xnoremap <silent> <Plug>(MatchitVisualMultiBackward) :call matchit#MultiMatch("bW", "n")m'gv``
+xnoremap <silent> <Plug>(MatchitVisualMultiForward) :call matchit#MultiMatch("W",  "n")m'gv``
+onoremap <silent> <Plug>(MatchitOperationMultiBackward) :call matchit#MultiMatch("bW", "o")
+onoremap <silent> <Plug>(MatchitOperationMultiForward) :call matchit#MultiMatch("W",  "o")
+xmap <silent> <Plug>(MatchitVisualTextObject) <Plug>(MatchitVisualMultiBackward)o<Plug>(MatchitVisualMultiForward)
 vnoremap <silent> <Plug>NetrwBrowseXVis :call netrw#BrowseXVis()
 nnoremap <silent> <Plug>NetrwBrowseX :call netrw#BrowseX(netrw#GX(),netrw#CheckIfRemote(netrw#GX()))
 vmap <C-X> "*d
@@ -106,15 +106,15 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 1 + 28) / 56)
-exe '2resize ' . ((&lines * 18 + 28) / 56)
-exe 'vert 2resize ' . ((&columns * 58 + 57) / 115)
-exe '3resize ' . ((&lines * 18 + 28) / 56)
-exe 'vert 3resize ' . ((&columns * 56 + 57) / 115)
-exe '4resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 4resize ' . ((&columns * 58 + 57) / 115)
-exe '5resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 5resize ' . ((&columns * 56 + 57) / 115)
+exe '1resize ' . ((&lines * 0 + 28) / 56)
+exe '2resize ' . ((&lines * 36 + 28) / 56)
+exe 'vert 2resize ' . ((&columns * 40 + 117) / 235)
+exe '3resize ' . ((&lines * 36 + 28) / 56)
+exe 'vert 3resize ' . ((&columns * 194 + 117) / 235)
+exe '4resize ' . ((&lines * 16 + 28) / 56)
+exe 'vert 4resize ' . ((&columns * 40 + 117) / 235)
+exe '5resize ' . ((&lines * 16 + 28) / 56)
+exe 'vert 5resize ' . ((&columns * 194 + 117) / 235)
 argglobal
 setlocal keymap=
 setlocal noarabic
@@ -240,7 +240,7 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 29 - ((0 * winheight(0) + 0) / 1)
+let s:l = 29 - ((0 * winheight(0) + 0) / 0)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -373,7 +373,7 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 9) / 18)
+let s:l = 1 - ((0 * winheight(0) + 18) / 36)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -381,7 +381,7 @@ normal! zt
 normal! 016|
 wincmd w
 argglobal
-if bufexists("conf.cfg") | buffer conf.cfg | else | edit conf.cfg | endif
+if bufexists("package.yaml") | buffer package.yaml | else | edit package.yaml | endif
 setlocal keymap=
 setlocal noarabic
 setlocal noautoindent
@@ -417,8 +417,8 @@ setlocal nodiff
 setlocal equalprg=
 setlocal errorformat=
 setlocal expandtab
-if &filetype != 'cfg'
-setlocal filetype=cfg
+if &filetype != 'yaml'
+setlocal filetype=yaml
 endif
 setlocal fixendofline
 setlocal foldcolumn=0
@@ -456,7 +456,7 @@ setlocal modeline
 setlocal modifiable
 setlocal nrformats=bin,hex
 set number
-setlocal number
+setlocal nonumber
 setlocal numberwidth=4
 setlocal omnifunc=
 setlocal path=
@@ -484,8 +484,8 @@ setlocal statusline=
 setlocal suffixesadd=
 setlocal swapfile
 setlocal synmaxcol=3000
-if &syntax != 'cfg'
-setlocal syntax=cfg
+if &syntax != 'yaml'
+setlocal syntax=yaml
 endif
 setlocal tabstop=4
 setlocal tagcase=
@@ -506,12 +506,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 9) / 18)
+let s:l = 28 - ((9 * winheight(0) + 18) / 36)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 0
+28
+normal! 06|
 wincmd w
 argglobal
 if bufexists("plan.txt") | buffer plan.txt | else | edit plan.txt | endif
@@ -639,12 +639,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 16) / 33)
+let s:l = 19 - ((6 * winheight(0) + 8) / 16)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 05|
+19
+normal! 028|
 wincmd w
 argglobal
 if bufexists("app\Main.hs") | buffer app\Main.hs | else | edit app\Main.hs | endif
@@ -772,29 +772,29 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 50 - ((5 * winheight(0) + 16) / 33)
+let s:l = 50 - ((15 * winheight(0) + 8) / 16)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
 50
-normal! 0
+normal! 031|
 wincmd w
-4wincmd w
-exe '1resize ' . ((&lines * 1 + 28) / 56)
-exe '2resize ' . ((&lines * 18 + 28) / 56)
-exe 'vert 2resize ' . ((&columns * 58 + 57) / 115)
-exe '3resize ' . ((&lines * 18 + 28) / 56)
-exe 'vert 3resize ' . ((&columns * 56 + 57) / 115)
-exe '4resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 4resize ' . ((&columns * 58 + 57) / 115)
-exe '5resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 5resize ' . ((&columns * 56 + 57) / 115)
+3wincmd w
+exe '1resize ' . ((&lines * 0 + 28) / 56)
+exe '2resize ' . ((&lines * 36 + 28) / 56)
+exe 'vert 2resize ' . ((&columns * 40 + 117) / 235)
+exe '3resize ' . ((&lines * 36 + 28) / 56)
+exe 'vert 3resize ' . ((&columns * 194 + 117) / 235)
+exe '4resize ' . ((&lines * 16 + 28) / 56)
+exe 'vert 4resize ' . ((&columns * 40 + 117) / 235)
+exe '5resize ' . ((&lines * 16 + 28) / 56)
+exe 'vert 5resize ' . ((&columns * 194 + 117) / 235)
 tabnext 1
 badd +1 package.yaml
 badd +1 E:\server_config\usr_config.cfg
 badd +1 conf.cfg
-badd +1 plan.txt
-badd +0 app\Main.hs
+badd +0 plan.txt
+badd +1 app\Main.hs
 badd +12 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\conf.cfg
 badd +52 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\TG.hs
 badd +7 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TG.hs

@@ -35,6 +35,7 @@ library
     , configurator
     , directory
     , http-types
+    , postgresql-simple
     , text
     , wai
     , warp
@@ -52,6 +53,7 @@ executable server-exe
     , configurator
     , directory
     , http-types
+    , postgresql-simple
     , server
     , text
     , wai
@@ -71,6 +73,7 @@ test-suite server-test
     , configurator
     , directory
     , http-types
+    , postgresql-simple
     , server
     , text
     , wai
