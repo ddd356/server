@@ -5,35 +5,35 @@ set cpo&vim
 inoremap <C-U> u
 map! <S-Insert> *
 vmap  "*d
-nmap <silent> % <Plug>(MatchitNormalForward)
-xmap <silent> % <Plug>(MatchitVisualForward)
 omap <silent> % <Plug>(MatchitOperationForward)
+xmap <silent> % <Plug>(MatchitVisualForward)
+nmap <silent> % <Plug>(MatchitNormalForward)
 map Q gq
-nmap <silent> [% <Plug>(MatchitNormalMultiBackward)
-xmap <silent> [% <Plug>(MatchitVisualMultiBackward)
 omap <silent> [% <Plug>(MatchitOperationMultiBackward)
-nmap <silent> ]% <Plug>(MatchitNormalMultiForward)
-xmap <silent> ]% <Plug>(MatchitVisualMultiForward)
+xmap <silent> [% <Plug>(MatchitVisualMultiBackward)
+nmap <silent> [% <Plug>(MatchitNormalMultiBackward)
 omap <silent> ]% <Plug>(MatchitOperationMultiForward)
+xmap <silent> ]% <Plug>(MatchitVisualMultiForward)
+nmap <silent> ]% <Plug>(MatchitNormalMultiForward)
 xmap a% <Plug>(MatchitVisualTextObject)
-nmap <silent> g% <Plug>(MatchitNormalBackward)
-xmap <silent> g% <Plug>(MatchitVisualBackward)
 omap <silent> g% <Plug>(MatchitOperationBackward)
+xmap <silent> g% <Plug>(MatchitVisualBackward)
+nmap <silent> g% <Plug>(MatchitNormalBackward)
 vmap gx <Plug>NetrwBrowseXVis
 nmap gx <Plug>NetrwBrowseX
-nnoremap <silent> <Plug>(MatchitNormalForward) :call matchit#Match_wrapper('',1,'n')
-nnoremap <silent> <Plug>(MatchitNormalBackward) :call matchit#Match_wrapper('',0,'n')
-xnoremap <silent> <Plug>(MatchitVisualForward) :call matchit#Match_wrapper('',1,'v')m'gv``
-xnoremap <silent> <Plug>(MatchitVisualBackward) :call matchit#Match_wrapper('',0,'v')m'gv``
-onoremap <silent> <Plug>(MatchitOperationForward) :call matchit#Match_wrapper('',1,'o')
-onoremap <silent> <Plug>(MatchitOperationBackward) :call matchit#Match_wrapper('',0,'o')
-nnoremap <silent> <Plug>(MatchitNormalMultiBackward) :call matchit#MultiMatch("bW", "n")
-nnoremap <silent> <Plug>(MatchitNormalMultiForward) :call matchit#MultiMatch("W",  "n")
-xnoremap <silent> <Plug>(MatchitVisualMultiBackward) :call matchit#MultiMatch("bW", "n")m'gv``
-xnoremap <silent> <Plug>(MatchitVisualMultiForward) :call matchit#MultiMatch("W",  "n")m'gv``
-onoremap <silent> <Plug>(MatchitOperationMultiBackward) :call matchit#MultiMatch("bW", "o")
-onoremap <silent> <Plug>(MatchitOperationMultiForward) :call matchit#MultiMatch("W",  "o")
 xmap <silent> <Plug>(MatchitVisualTextObject) <Plug>(MatchitVisualMultiBackward)o<Plug>(MatchitVisualMultiForward)
+onoremap <silent> <Plug>(MatchitOperationMultiForward) :call matchit#MultiMatch("W",  "o")
+onoremap <silent> <Plug>(MatchitOperationMultiBackward) :call matchit#MultiMatch("bW", "o")
+xnoremap <silent> <Plug>(MatchitVisualMultiForward) :call matchit#MultiMatch("W",  "n")m'gv``
+xnoremap <silent> <Plug>(MatchitVisualMultiBackward) :call matchit#MultiMatch("bW", "n")m'gv``
+nnoremap <silent> <Plug>(MatchitNormalMultiForward) :call matchit#MultiMatch("W",  "n")
+nnoremap <silent> <Plug>(MatchitNormalMultiBackward) :call matchit#MultiMatch("bW", "n")
+onoremap <silent> <Plug>(MatchitOperationBackward) :call matchit#Match_wrapper('',0,'o')
+onoremap <silent> <Plug>(MatchitOperationForward) :call matchit#Match_wrapper('',1,'o')
+xnoremap <silent> <Plug>(MatchitVisualBackward) :call matchit#Match_wrapper('',0,'v')m'gv``
+xnoremap <silent> <Plug>(MatchitVisualForward) :call matchit#Match_wrapper('',1,'v')m'gv``
+nnoremap <silent> <Plug>(MatchitNormalBackward) :call matchit#Match_wrapper('',0,'n')
+nnoremap <silent> <Plug>(MatchitNormalForward) :call matchit#Match_wrapper('',1,'n')
 vnoremap <silent> <Plug>NetrwBrowseXVis :call netrw#BrowseXVis()
 nnoremap <silent> <Plug>NetrwBrowseX :call netrw#BrowseX(netrw#GX(),netrw#CheckIfRemote(netrw#GX()))
 vmap <C-X> "*d
@@ -103,14 +103,14 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 20 + 28) / 56)
-exe 'vert 1resize ' . ((&columns * 57 + 57) / 115)
-exe '2resize ' . ((&lines * 20 + 28) / 56)
-exe 'vert 2resize ' . ((&columns * 57 + 57) / 115)
-exe '3resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 3resize ' . ((&columns * 57 + 57) / 115)
-exe '4resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 4resize ' . ((&columns * 57 + 57) / 115)
+exe '1resize ' . ((&lines * 6 + 28) / 56)
+exe 'vert 1resize ' . ((&columns * 117 + 117) / 235)
+exe '2resize ' . ((&lines * 6 + 28) / 56)
+exe 'vert 2resize ' . ((&columns * 117 + 117) / 235)
+exe '3resize ' . ((&lines * 47 + 28) / 56)
+exe 'vert 3resize ' . ((&columns * 87 + 117) / 235)
+exe '4resize ' . ((&lines * 47 + 28) / 56)
+exe 'vert 4resize ' . ((&columns * 147 + 117) / 235)
 argglobal
 setlocal keymap=
 setlocal noarabic
@@ -235,7 +235,7 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 14 - ((7 * winheight(0) + 10) / 20)
+let s:l = 14 - ((2 * winheight(0) + 3) / 6)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -368,7 +368,7 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 30 - ((0 * winheight(0) + 10) / 20)
+let s:l = 30 - ((2 * winheight(0) + 3) / 6)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -376,7 +376,7 @@ normal! zt
 normal! 06|
 wincmd w
 argglobal
-if bufexists("plan.txt") | buffer plan.txt | else | edit plan.txt | endif
+if bufexists("E:\server_config\usr_config.cfg") | buffer E:\server_config\usr_config.cfg | else | edit E:\server_config\usr_config.cfg | endif
 setlocal keymap=
 setlocal noarabic
 setlocal noautoindent
@@ -412,8 +412,8 @@ setlocal nodiff
 setlocal equalprg=
 setlocal errorformat=
 setlocal expandtab
-if &filetype != 'text'
-setlocal filetype=text
+if &filetype != 'cfg'
+setlocal filetype=cfg
 endif
 setlocal fixendofline
 setlocal foldcolumn=0
@@ -479,8 +479,8 @@ setlocal statusline=
 setlocal suffixesadd=
 setlocal swapfile
 setlocal synmaxcol=3000
-if &syntax != 'text'
-setlocal syntax=text
+if &syntax != 'cfg'
+setlocal syntax=cfg
 endif
 setlocal tabstop=4
 setlocal tagcase=
@@ -501,15 +501,16 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 16) / 33)
+let s:l = 5 - ((0 * winheight(0) + 23) / 47)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
-normal! 0
+5
+normal! 017|
+lcd ~\Desktop\haskell\server
 wincmd w
 argglobal
-if bufexists("app\Main.hs") | buffer app\Main.hs | else | edit app\Main.hs | endif
+if bufexists("~\Desktop\haskell\server\app\Main.hs") | buffer ~\Desktop\haskell\server\app\Main.hs | else | edit ~\Desktop\haskell\server\app\Main.hs | endif
 setlocal keymap=
 setlocal noarabic
 setlocal noautoindent
@@ -634,91 +635,91 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 34 - ((0 * winheight(0) + 16) / 33)
+let s:l = 96 - ((20 * winheight(0) + 23) / 47)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-34
-normal! 015|
+96
+normal! 0
 wincmd w
 4wincmd w
-exe '1resize ' . ((&lines * 20 + 28) / 56)
-exe 'vert 1resize ' . ((&columns * 57 + 57) / 115)
-exe '2resize ' . ((&lines * 20 + 28) / 56)
-exe 'vert 2resize ' . ((&columns * 57 + 57) / 115)
-exe '3resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 3resize ' . ((&columns * 57 + 57) / 115)
-exe '4resize ' . ((&lines * 33 + 28) / 56)
-exe 'vert 4resize ' . ((&columns * 57 + 57) / 115)
+exe '1resize ' . ((&lines * 6 + 28) / 56)
+exe 'vert 1resize ' . ((&columns * 117 + 117) / 235)
+exe '2resize ' . ((&lines * 6 + 28) / 56)
+exe 'vert 2resize ' . ((&columns * 117 + 117) / 235)
+exe '3resize ' . ((&lines * 47 + 28) / 56)
+exe 'vert 3resize ' . ((&columns * 87 + 117) / 235)
+exe '4resize ' . ((&lines * 47 + 28) / 56)
+exe 'vert 4resize ' . ((&columns * 147 + 117) / 235)
 tabnext 1
-badd +1 endpoints.txt
-badd +29 package.yaml
-badd +1 plan.txt
-badd +0 app\Main.hs
+badd +1 ~\Desktop\haskell\server\endpoints.txt
+badd +29 ~\Desktop\haskell\server\package.yaml
+badd +1 ~\Desktop\haskell\server\plan.txt
+badd +0 ~\Desktop\haskell\server\app\Main.hs
 badd +1 E:\server_config\usr_config.cfg
-badd +1 conf.cfg
-badd +12 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\conf.cfg
-badd +52 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\TG.hs
-badd +7 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TG.hs
-badd +124 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\TG.hs
-badd +35 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Log\Handle.hs
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\log.log
-badd +205 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\VK.hs
-badd +19 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\app\Main.hs
-badd +37 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\Common.hs
-badd +4 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Log\Impl\BotLog.hs
-badd +8 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\VK.hs
-badd +45 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Handle.hs
-badd +11 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Reader.hs
-badd +81 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\JSON\TG.hs
-badd +40 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\VK.hs
-badd +19 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Internal.hs
-badd +20 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\VK.hs
-badd +40 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Configuration.hs
-badd +11 \Users\Demo\Desktop\haskell\test\testParseRequest\app\Main.hs
-badd +35 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\package.yaml
-badd +14 \Users\Demo\Desktop\haskell\repeat-aeson\app\Main.hs
-badd +40 \Users\Demo\Desktop\haskell\repeat-aeson-II\app\Main.hs
-badd +5 \Users\Demo\Desktop\haskell\learn-aeson\app\Main.hs
-badd +50 \Users\Demo\Desktop\haskell\readConfig\app\Main.hs
-badd +36 \Users\Demo\Desktop\haskell\test\test.hs
-badd +5 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Lib.hs
-badd +1 \Users\Demo\Desktop\haskell\repeat-aeson\myJSON.json
-badd +1 \Users\Demo\Desktop\haskell\repeat-aeson\Main.hs
-badd +23 \Users\Demo\Desktop\haskell\learn-aeson\package.yaml
-badd +4 \Users\Demo\Desktop\haskell\learn-aeson\myJSON.json
-badd +7 \Users\Demo\Desktop\haskell\learn-aeson\myJSON_m.json
-badd +2 \Users\Demo\Desktop\haskell\learn-aeson\myJSON_nm.json
-badd +15 \Users\Demo\Desktop\haskell\repeat-aeson\package.yaml
-badd +29 \Users\Demo\Desktop\haskell\repeat-aeson\app\Main.hs.bak
-badd +51 \Users\Demo\Desktop\haskell\learn-aeson-II\app\Main.hs
-badd +5 \Users\Demo\Desktop\haskell\learn-aeson-II\myJSON.json
-badd +24 \Users\Demo\Desktop\haskell\learn-aeson-II\package.yaml
-badd +6 \Users\Demo\Desktop\haskell\learn-aeson-II\map.json
-badd +14 \Users\Demo\Desktop\haskell\repeat-aeson-II\field.json
-badd +1 \Users\Demo\Desktop\haskell\learn-aeson-II\fiedl.json
-badd +1 \Users\Demo\Desktop\haskell\learn-aeson-II\field.json
-badd +24 \Users\Demo\Desktop\haskell\repeat-aeson-II\package.yaml
-badd +1 \Users\Demo\Desktop\haskell\test\request.txt
-badd +1 \Users\Demo\Desktop\haskell\test\rk.txt
-badd +1 \Users\Demo\Desktop\haskell\test\parseRequest.txt
-badd +3 \Users\Demo\Desktop\haskell\test\parseRequest.hs
-badd +25 \Users\Demo\Desktop\haskell\test\testParseRequest\package.yaml
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\TH.hs
-badd +3 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\TG.hs
-badd +3 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\Reader.hs
-badd +4 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\VK_Handle.hs
-badd +24 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\VK_Handle.hs
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Conf\Reader.hs
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\VK_Handle.hs
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TH.hs
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TG
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\JSON\TH.hs
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\TG.hs
-badd +3 \Users\Demo\Desktop\haskell\bot-VK-T\tg-response.json
-badd +2 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Handle.hs~
-badd +1 \Users\Demo\Desktop\haskell\bot-VK-T\bot-VK-T\srс\Log\Handle.hs
-badd +27 .gitignore
+badd +1 ~\Desktop\haskell\server\conf.cfg
+badd +12 ~\Desktop\haskell\bot-VK-T\bot-VK-T\conf.cfg
+badd +52 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\TG.hs
+badd +7 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TG.hs
+badd +124 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\TG.hs
+badd +35 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Log\Handle.hs
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\log.log
+badd +205 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\VK.hs
+badd +19 ~\Desktop\haskell\bot-VK-T\bot-VK-T\app\Main.hs
+badd +37 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\Common.hs
+badd +4 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Log\Impl\BotLog.hs
+badd +8 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\VK.hs
+badd +45 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Handle.hs
+badd +11 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Reader.hs
+badd +81 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\JSON\TG.hs
+badd +40 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\VK.hs
+badd +19 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Internal.hs
+badd +20 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\VK.hs
+badd +40 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Configuration.hs
+badd +11 ~\Desktop\haskell\test\testParseRequest\app\Main.hs
+badd +35 ~\Desktop\haskell\bot-VK-T\bot-VK-T\package.yaml
+badd +14 ~\Desktop\haskell\repeat-aeson\app\Main.hs
+badd +40 ~\Desktop\haskell\repeat-aeson-II\app\Main.hs
+badd +5 ~\Desktop\haskell\learn-aeson\app\Main.hs
+badd +50 ~\Desktop\haskell\readConfig\app\Main.hs
+badd +36 ~\Desktop\haskell\test\test.hs
+badd +5 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Lib.hs
+badd +1 ~\Desktop\haskell\repeat-aeson\myJSON.json
+badd +1 ~\Desktop\haskell\repeat-aeson\Main.hs
+badd +23 ~\Desktop\haskell\learn-aeson\package.yaml
+badd +4 ~\Desktop\haskell\learn-aeson\myJSON.json
+badd +7 ~\Desktop\haskell\learn-aeson\myJSON_m.json
+badd +2 ~\Desktop\haskell\learn-aeson\myJSON_nm.json
+badd +15 ~\Desktop\haskell\repeat-aeson\package.yaml
+badd +29 ~\Desktop\haskell\repeat-aeson\app\Main.hs.bak
+badd +51 ~\Desktop\haskell\learn-aeson-II\app\Main.hs
+badd +5 ~\Desktop\haskell\learn-aeson-II\myJSON.json
+badd +24 ~\Desktop\haskell\learn-aeson-II\package.yaml
+badd +6 ~\Desktop\haskell\learn-aeson-II\map.json
+badd +14 ~\Desktop\haskell\repeat-aeson-II\field.json
+badd +1 ~\Desktop\haskell\learn-aeson-II\fiedl.json
+badd +1 ~\Desktop\haskell\learn-aeson-II\field.json
+badd +24 ~\Desktop\haskell\repeat-aeson-II\package.yaml
+badd +1 ~\Desktop\haskell\test\request.txt
+badd +1 ~\Desktop\haskell\test\rk.txt
+badd +1 ~\Desktop\haskell\test\parseRequest.txt
+badd +3 ~\Desktop\haskell\test\parseRequest.hs
+badd +25 ~\Desktop\haskell\test\testParseRequest\package.yaml
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\TH.hs
+badd +3 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\TG.hs
+badd +3 ~\Desktop\haskell\bot-VK-T\bot-VK-T\Reader.hs
+badd +4 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\VK_Handle.hs
+badd +24 ~\Desktop\haskell\bot-VK-T\bot-VK-T\VK_Handle.hs
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Conf\Reader.hs
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\VK_Handle.hs
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TH.hs
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\TG
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\JSON\TH.hs
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\TG.hs
+badd +3 ~\Desktop\haskell\bot-VK-T\tg-response.json
+badd +2 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Handle.hs~
+badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\srс\Log\Handle.hs
+badd +27 ~\Desktop\haskell\server\.gitignore
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
 endif
@@ -730,6 +731,7 @@ if file_readable(s:sx)
   exe "source " . fnameescape(s:sx)
 endif
 let &so = s:so_save | let &siso = s:siso_save
+nohlsearch
 doautoall SessionLoadPost
 unlet SessionLoad
 " vim: set ft=vim :
