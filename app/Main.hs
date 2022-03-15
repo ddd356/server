@@ -2,6 +2,7 @@
 module Main where
 
 import Lib
+import JSON
 import Network.Wai
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
@@ -176,7 +177,9 @@ processListUsersRequest request = do
 
     -- in case of credential correctness return user list; otherwise return error message
     case credentials_correct of
-        True -> getUsersList
+        True -> do
+            res <- getUsersList
+            return $ resultUsersList res
         _ -> return "You have no admin rights to watch users list"
 
 processAddUsersRequest :: Request -> IO ByteString
@@ -255,6 +258,7 @@ processAddPictureRequest request = do
 processListPicturesRequest :: Request -> IO ByteString
 processListPicturesRequest request = do
     -- get params from request
+    return "pictures list" -- temporary
 
 processAddPostRequest :: Request -> IO ByteString
 processAddPostRequest request = do

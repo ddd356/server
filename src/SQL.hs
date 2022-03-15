@@ -225,13 +225,15 @@ createNewsDb = do
     close conn2
     return ()
 
-getUsersList :: IO ByteString
+getUsersList :: IO [[String]]
+-- getUsersList :: IO ByteString
 getUsersList = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     result <- query_ conn ("SELECT login FROM public.users") :: IO [[String]]
     close conn
-    return . fromString . unlines . concat $ result
+    --return . fromString . unlines . concat $ result
+    return result
 
 addUser :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> Bool -> IO ByteString
 addUser firstname lastname avatar login password admin = do

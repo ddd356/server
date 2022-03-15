@@ -33,6 +33,7 @@ dependencies:
 - random
 - time
 - wai-extra
+- aeson
 
 library:
   source-dirs: src
