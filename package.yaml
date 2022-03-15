@@ -30,6 +30,9 @@ dependencies:
 - postgresql-simple
 - bytestring
 - utf8-string
+- random
+- time
+- wai-extra
 
 library:
   source-dirs: src

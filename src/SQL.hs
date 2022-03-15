@@ -1,17 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module SQL where
 
-import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query_, close, execute_ )
+import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, close, execute_, execute, Binary(..) )
 import qualified Data.Configurator as Cfg ( autoReload, autoConfig, Worth(..), require )
 import Data.String ( fromString )
 import Data.ByteString ( ByteString )
 import Data.ByteString.UTF8 ( toString )
+import Random
+import Data.Time.LocalTime ( TimeOfDay(..) )
 
 check_news_db_existense :: IO Bool
 check_news_db_existense = do
-    host <- confGetPostgresqlHost
-    user <- confGetPostgresqlUser
-    password <- confGetPostgresqlPassword
+    (host, user, password, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user password "" )
     db_names <- query_ conn "SELECT datname FROM pg_database;" :: IO [[String]]
     database <- confGetPostgresqlDatabase
@@ -21,6 +21,14 @@ check_news_db_existense = do
         False -> do
             putStrLn "Database doesn't exist on a server. Run with -create-db to initialize database."
             return False
+
+confGetPostgresqlConfiguration :: IO (String, String, String, String)
+confGetPostgresqlConfiguration = do
+    host <- confGetPostgresqlHost
+    user <- confGetPostgresqlUser
+    password <- confGetPostgresqlPassword
+    database <- confGetPostgresqlDatabase
+    return (host, user, password, database)
 
 confGetPostgresqlHost :: IO String
 confGetPostgresqlHost = do
@@ -44,16 +52,12 @@ confGetPostgresqlDatabase = do
 
 createNewsDb :: IO ()
 createNewsDb = do
-    host <- confGetPostgresqlHost
-    user <- confGetPostgresqlUser
-    password <- confGetPostgresqlPassword
-    database <- confGetPostgresqlDatabase
+    (host, user, password, database) <- confGetPostgresqlConfiguration
     conn1 <- connect ( ConnectInfo host 5432 user password "" )
     execute_ conn1 $ fromString $ "CREATE DATABASE " ++ database ++ ";"
     close conn1
     conn2 <- connect ( ConnectInfo host 5432 user password database )
     execute_ conn2 $ "BEGIN; \
-\  \
 \  \
 \ CREATE TABLE IF NOT EXISTS public.users \
 \ ( \
@@ -221,13 +225,120 @@ createNewsDb = do
     close conn2
     return ()
 
+getUsersList :: IO ByteString
+getUsersList = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- query_ conn ("SELECT login FROM public.users") :: IO [[String]]
+    close conn
+    return . fromString . unlines . concat $ result
+
+addUser :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> Bool -> IO ByteString
+addUser firstname lastname avatar login password admin = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "INSERT INTO public.users (firstname, lastname, avatar, login, password, create_date, admin) VALUES (?, ?, ?, ?, ?, ?, ?)" (firstname, lastname, Binary avatar, login, password, TimeOfDay 13 00 00 , admin)
+    close conn
+    return "User added"
+
+addAuthor :: ByteString -> ByteString -> IO ByteString
+addAuthor login description = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "INSERT INTO public.authors (description, user_id) \
+\ SELECT ?, id \
+\ FROM public.users \
+\ WHERE users.login = ?" (description, login)
+    close conn
+    return "Author added"
+
 checkCredentials :: ByteString -> ByteString -> IO Bool
 checkCredentials login password = do
-    host <- confGetPostgresqlHost
-    user <- confGetPostgresqlUser
-    pass <- confGetPostgresqlPassword
-    database <- confGetPostgresqlDatabase
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query_ conn $ fromString $ "SELECT id from public.users where login = '" ++ ( toString login) ++ "' AND password = '" ++ ( toString password) ++ "' LIMIT 1" :: IO [[Int]]
+    result <- query conn "SELECT id from public.users where login = ? AND password = ? LIMIT 1" (login, password) :: IO [[Int]]
     close conn
     return . not . null $ result
+
+deleteAuthor :: ByteString -> IO ByteString
+deleteAuthor login = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "DELETE FROM public.authors WHERE user_id IN (SELECT id FROM public.users WHERE users.login = ?)" [login]
+    close conn 
+    return "Author deleted"
+
+addPost :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> IO ByteString
+addPost login shortName createDate category text mainPicture = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "INSERT INTO public.pictures ?" [login] -- temporary wrong line
+    close conn
+    return "Post added to drafts"
+    
+addPicture :: ByteString -> IO ByteString
+addPicture picture = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "INSERT INTO public.pictures (picture) VALUES (?)" [picture]
+    close conn
+    return "Picture added"
+
+checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
+checkLoginAndTokenAccordance login token = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- query conn "SELECT tokens.user_id FROM public.tokens INNER JOIN public.users ON users.id = tokens.user_id WHERE tokens.token = ? AND users.login = ?" (token, login) :: IO [[Int]]
+    close conn
+    return . not . null $ result
+
+generateToken :: ByteString -> IO ByteString
+generateToken login = do
+    -- read parameters from config
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+
+    -- generating random token
+    newToken <- getRandomString 20
+
+    -- open connection
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    -- query for checking token existense
+    res <- query conn "SELECT token FROM public.tokens WHERE token = ?" [newToken] :: IO [[String]]
+    if length res > 0
+        then generateToken login
+        else return . fromString $ newToken
+
+addNewToken :: ByteString -> ByteString -> IO ()
+addNewToken login token = do
+    -- read parameters from config
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+
+    -- open connection
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    -- query for removing existent token for user and add a new token
+    res <- execute conn "BEGIN; \
+\ \
+\ DELETE FROM public.tokens WHERE user_id IN (SELECT id FROM public.users WHERE login = 'admin'); \
+\ \
+\ INSERT INTO public.tokens \
+\ SELECT id, ? FROM public.users WHERE login = ?; \
+\ END ;" ( token , login )
+
+    -- closing connection
+    close conn
+
+    return ()
+
+checkAdminRights :: ByteString -> IO Bool
+checkAdminRights token = do
+    -- read parameters from config
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+
+    -- open connection
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    -- query for checking admin rights
+    res <- query conn "SELECT tokens.user_id FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
+    return $ length res /= 0

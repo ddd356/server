@@ -82,18 +82,13 @@ endif
 set shortmess=aoO
 argglobal
 %argdel
-edit package.yaml
+edit endpoints.txt
 set splitbelow splitright
 wincmd _ | wincmd |
 split
-1wincmd k
-wincmd _ | wincmd |
-vsplit
-1wincmd h
 wincmd _ | wincmd |
 split
-1wincmd k
-wincmd w
+2wincmd k
 wincmd w
 wincmd w
 set nosplitbelow
@@ -103,148 +98,10 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 4 + 28) / 56)
-exe 'vert 1resize ' . ((&columns * 117 + 117) / 235)
-exe '2resize ' . ((&lines * 29 + 28) / 56)
-exe 'vert 2resize ' . ((&columns * 117 + 117) / 235)
-exe '3resize ' . ((&lines * 34 + 28) / 56)
-exe 'vert 3resize ' . ((&columns * 117 + 117) / 235)
-exe '4resize ' . ((&lines * 19 + 28) / 56)
+exe '1resize ' . ((&lines * 21 + 28) / 56)
+exe '2resize ' . ((&lines * 5 + 28) / 56)
+exe '3resize ' . ((&lines * 26 + 28) / 56)
 argglobal
-setlocal keymap=
-setlocal noarabic
-setlocal noautoindent
-setlocal backupcopy=
-setlocal balloonexpr=
-setlocal nobinary
-setlocal nobreakindent
-setlocal breakindentopt=
-setlocal bufhidden=
-setlocal buflisted
-setlocal buftype=
-setlocal nocindent
-setlocal cinkeys=0{,0},0),0],:,0#,!^F,o,O,e
-setlocal cinoptions=
-setlocal cinwords=if,else,while,do,for,switch
-setlocal colorcolumn=
-setlocal comments=s1:/*,mb:*,ex:*/,://,b:#,:%,:XCOMM,n:>,fb:-
-setlocal commentstring=/*%s*/
-setlocal complete=.,w,b,u,t,i
-setlocal concealcursor=
-setlocal conceallevel=0
-setlocal completefunc=
-setlocal completeslash=
-setlocal nocopyindent
-setlocal cryptmethod=
-setlocal nocursorbind
-setlocal nocursorcolumn
-setlocal nocursorline
-setlocal cursorlineopt=both
-setlocal define=
-setlocal dictionary=
-setlocal nodiff
-setlocal equalprg=
-setlocal errorformat=
-setlocal expandtab
-if &filetype != 'yaml'
-setlocal filetype=yaml
-endif
-setlocal fixendofline
-setlocal foldcolumn=0
-setlocal foldenable
-setlocal foldexpr=0
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldmarker={{{,}}}
-setlocal foldmethod=manual
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldtext=foldtext()
-setlocal formatexpr=
-setlocal formatoptions=tcq
-setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
-setlocal formatprg=
-setlocal grepprg=
-setlocal iminsert=0
-setlocal imsearch=-1
-setlocal include=
-setlocal includeexpr=
-setlocal indentexpr=
-setlocal indentkeys=0{,0},0),0],:,0#,!^F,o,O,e
-setlocal noinfercase
-setlocal iskeyword=@,48-57,_,128-167,224-235
-setlocal keywordprg=
-setlocal nolinebreak
-setlocal nolisp
-setlocal lispwords=
-setlocal nolist
-setlocal makeencoding=
-setlocal makeprg=
-setlocal matchpairs=(:),{:},[:]
-setlocal modeline
-setlocal modifiable
-setlocal nrformats=bin,hex
-set number
-setlocal nonumber
-setlocal numberwidth=4
-setlocal omnifunc=
-setlocal path=
-setlocal nopreserveindent
-setlocal nopreviewwindow
-setlocal quoteescape=\\
-setlocal noreadonly
-setlocal norelativenumber
-setlocal norightleft
-setlocal rightleftcmd=search
-setlocal noscrollbind
-setlocal scrolloff=-1
-setlocal shiftwidth=4
-setlocal noshortname
-setlocal showbreak=
-setlocal sidescrolloff=-1
-setlocal signcolumn=auto
-setlocal nosmartindent
-setlocal softtabstop=0
-setlocal nospell
-setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
-setlocal spellfile=
-setlocal spelllang=en
-setlocal statusline=
-setlocal suffixesadd=
-setlocal swapfile
-setlocal synmaxcol=3000
-if &syntax != 'yaml'
-setlocal syntax=yaml
-endif
-setlocal tabstop=4
-setlocal tagcase=
-setlocal tagfunc=
-setlocal tags=
-setlocal termwinkey=
-setlocal termwinscroll=10000
-setlocal termwinsize=
-setlocal textwidth=0
-setlocal thesaurus=
-setlocal undofile
-setlocal undolevels=-123456
-setlocal varsofttabstop=
-setlocal vartabstop=
-setlocal wincolor=
-setlocal nowinfixheight
-setlocal nowinfixwidth
-setlocal wrap
-setlocal wrapmargin=0
-silent! normal! zE
-let s:l = 32 - ((2 * winheight(0) + 2) / 4)
-if s:l < 1 | let s:l = 1 | endif
-exe s:l
-normal! zt
-32
-normal! 013|
-lcd ~\Desktop\haskell\server
-wincmd w
-argglobal
-if bufexists("~\Desktop\haskell\server\endpoints.txt") | buffer ~\Desktop\haskell\server\endpoints.txt | else | edit ~\Desktop\haskell\server\endpoints.txt | endif
 setlocal keymap=
 setlocal noarabic
 setlocal noautoindent
@@ -319,7 +176,7 @@ setlocal modeline
 setlocal modifiable
 setlocal nrformats=bin,hex
 set number
-setlocal nonumber
+setlocal number
 setlocal numberwidth=4
 setlocal omnifunc=
 setlocal path=
@@ -369,12 +226,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 44 - ((14 * winheight(0) + 14) / 29)
+let s:l = 51 - ((6 * winheight(0) + 10) / 21)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-44
-normal! 09|
+51
+normal! 0
 lcd ~\Desktop\haskell\server
 wincmd w
 argglobal
@@ -503,13 +360,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 231 - ((5 * winheight(0) + 17) / 34)
+let s:l = 282 - ((3 * winheight(0) + 2) / 5)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-231
-normal! 0182|
-lcd ~\Desktop\haskell\server
+282
+normal! 027|
 wincmd w
 argglobal
 if bufexists("~\Desktop\haskell\server\app\Main.hs") | buffer ~\Desktop\haskell\server\app\Main.hs | else | edit ~\Desktop\haskell\server\app\Main.hs | endif
@@ -637,27 +493,24 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 26 - ((12 * winheight(0) + 9) / 19)
+let s:l = 248 - ((22 * winheight(0) + 13) / 26)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-26
-normal! 05|
+248
+normal! 048|
 wincmd w
-4wincmd w
-exe '1resize ' . ((&lines * 4 + 28) / 56)
-exe 'vert 1resize ' . ((&columns * 117 + 117) / 235)
-exe '2resize ' . ((&lines * 29 + 28) / 56)
-exe 'vert 2resize ' . ((&columns * 117 + 117) / 235)
-exe '3resize ' . ((&lines * 34 + 28) / 56)
-exe 'vert 3resize ' . ((&columns * 117 + 117) / 235)
-exe '4resize ' . ((&lines * 19 + 28) / 56)
+exe '1resize ' . ((&lines * 21 + 28) / 56)
+exe '2resize ' . ((&lines * 5 + 28) / 56)
+exe '3resize ' . ((&lines * 26 + 28) / 56)
 tabnext 1
-badd +14 ~\Desktop\haskell\server\endpoints.txt
-badd +31 ~\Desktop\haskell\server\package.yaml
-badd +5 E:\server_config\usr_config.cfg
+badd +35 ~\Desktop\haskell\server\package.yaml
+badd +42 ~\Desktop\haskell\server\endpoints.txt
+badd +246 ~\Desktop\haskell\server\src\SQL.hs
 badd +0 ~\Desktop\haskell\server\app\Main.hs
-badd +1 ~\Desktop\haskell\server\plan.txt
+badd +13 ~\Desktop\tmp\tst.hs
+badd +5 E:\server_config\usr_config.cfg
+badd +19 ~\Desktop\haskell\server\plan.txt
 badd +1 ~\Desktop\haskell\server\conf.cfg
 badd +12 ~\Desktop\haskell\bot-VK-T\bot-VK-T\conf.cfg
 badd +52 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\TG.hs
@@ -666,7 +519,7 @@ badd +124 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\TG.hs
 badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Log\Handle.hs
 badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\log.log
 badd +205 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\VK.hs
-badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\app\Main.hs
+badd +14 ~\Desktop\haskell\bot-VK-T\bot-VK-T\app\Main.hs
 badd +37 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Conf\Impl\Common.hs
 badd +4 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\Log\Impl\BotLog.hs
 badd +8 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Impl\VK.hs
@@ -721,11 +574,11 @@ badd +3 ~\Desktop\haskell\bot-VK-T\tg-response.json
 badd +2 ~\Desktop\haskell\bot-VK-T\bot-VK-T\src\HTTP\Handle.hs~
 badd +1 ~\Desktop\haskell\bot-VK-T\bot-VK-T\srс\Log\Handle.hs
 badd +27 ~\Desktop\haskell\server\.gitignore
-badd +1 ~\Desktop\haskell\server\src\sql\Handle.hs
-badd +5 ~\Desktop\haskell\server\src\SQL.hs
+badd +1 ~\Desktop\haskell\server\src\SQL\Handle.hs
 badd +3 ~\Desktop\haskell\server\src\Lib.hs
 badd +1 ~\Desktop\haskell\server\src\ SQL.hs
 badd +1 ~\Desktop\haskell\server\pack
+badd +31 ~\Desktop\haskell\server\src\Random.hs
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
 endif
@@ -737,6 +590,7 @@ if file_readable(s:sx)
   exe "source " . fnameescape(s:sx)
 endif
 let &so = s:so_save | let &siso = s:siso_save
+nohlsearch
 doautoall SessionLoadPost
 unlet SessionLoad
 " vim: set ft=vim :
