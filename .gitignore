@@ -27,3 +27,5 @@ Session.vim
 endpoints.txt
 plan.txt
 *.pgerd
+*.ods
+*.ods#
