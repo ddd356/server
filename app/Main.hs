@@ -20,6 +20,7 @@ import Data.ByteString ( ByteString )
 import qualified Data.ByteString as BS (writeFile)
 import Data.ByteString.Lazy ( fromStrict, toStrict )
 import Data.ByteString.UTF8 ( toString )
+import Data.ByteString.Char8 ( readInt )
 import Data.Maybe ( fromMaybe )
 import Control.Monad ( join )
 import Data.String ( fromString )
@@ -118,7 +119,7 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
-    -- | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "add" = do
+    | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "add" = do
         -- processing pictures endpoint, action add
 
         -- in this action server adds a new picture
@@ -129,8 +130,9 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
-    -- | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "list" = do
+    | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "list" = do
         -- processing pictures endpoint, action list
+
         -- in this action server returns list of pictures with id
         putStrLn "Processing list pictures request"
         response_text <- processListPicturesRequest request
@@ -142,6 +144,12 @@ app request respond
     | otherwise = do
         -- print info message to command line
         putStrLn "I've done some IO here"
+        putStrLn $ show (length $ pathInfo request)
+        putStrLn $ show (last $ pathInfo request)
+        putStrLn $ show (action)
+        putStrLn $ show $ length (pathInfo request) == 1
+        putStrLn $ show $ last (pathInfo request) == "pictures"
+        putStrLn $ show $ action == "list"
         respond $ responseLBS
             status200
             [("Content-Type", "text/plain")]
@@ -171,6 +179,8 @@ processListUsersRequest :: Request -> IO ByteString
 processListUsersRequest request = do
     -- get token from request
     let token = fromMaybe "" . join $ lookup "token" $ queryString request
+    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let limit = fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
     
     -- check credentials for admin rights
     credentials_correct <- checkAdminRights token
@@ -178,9 +188,10 @@ processListUsersRequest request = do
     -- in case of credential correctness return user list; otherwise return error message
     case credentials_correct of
         True -> do
-            res <- getUsersList
-            return $ resultUsersList res
-        _ -> return "You have no admin rights to watch users list"
+            res <- getUsersList from limit
+            total <- totalNumberOfRowsInTable "users"
+            return $ resultUsersList res (total, limit, from) token
+        _ -> return $ resultRequest "error" "You have no admin rights to watch users list"
 
 processAddUsersRequest :: Request -> IO ByteString
 processAddUsersRequest request = do
@@ -200,8 +211,10 @@ processAddUsersRequest request = do
 
     -- in case of credential correctness add a new user; otherwise return error message
     case credentials_correct of
-        True -> addUser firstname lastname avatar login password admin
-        _ -> return "You have no admin rights to watch users list"
+        True -> do 
+            addUser firstname lastname avatar login password admin
+            return $ resultRequest "ok" ""
+        _ -> return $ resultRequest "error" "You have no admin rights to watch users list"
 
 processAddAuthorRequest :: Request -> IO ByteString
 processAddAuthorRequest request = do
@@ -222,8 +235,10 @@ processAddAuthorRequest request = do
 
     -- in case of credential correctness add a new author; otherwise return error message
     case credentials_correct of
-        True -> addAuthor login description
-        _ -> return "You have no permission to add author for this user"
+        True -> do
+            addAuthor login description
+            return $ resultRequest "ok" ""
+        _ -> return $ resultRequest "error" "You have no permission to add author for this user"
 
 processDeleteAuthorRequest :: Request -> IO ByteString
 processDeleteAuthorRequest request = do
@@ -243,8 +258,10 @@ processDeleteAuthorRequest request = do
 
     -- in case of credential correctness add a new author; otherwise return error message
     case credentials_correct of
-        True -> deleteAuthor login
-        _ -> return "You have no permission to delete author for this user"
+        True -> do
+            deleteAuthor login
+            return $ resultRequest "ok" ""
+        _ -> return $ resultRequest "error" "You have no permission to delete author for this user"
 
 processAddPictureRequest :: Request -> IO ByteString
 processAddPictureRequest request = do
@@ -254,11 +271,17 @@ processAddPictureRequest request = do
 
     -- add a new picture
     addPicture picture
+    return $ resultRequest "ok" ""
 
 processListPicturesRequest :: Request -> IO ByteString
 processListPicturesRequest request = do
     -- get params from request
-    return "pictures list" -- temporary
+    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let limit = fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+
+    res <- getPicturesList from limit
+    total <- totalNumberOfRowsInTable "pictures"
+    return $ resultPicturesList res (total, limit, from)
 
 processAddPostRequest :: Request -> IO ByteString
 processAddPostRequest request = do

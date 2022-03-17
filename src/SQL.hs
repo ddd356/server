@@ -9,6 +9,9 @@ import Data.ByteString.UTF8 ( toString )
 import Random
 import Data.Time.LocalTime ( TimeOfDay(..) )
 
+type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
+type SqlPicturesList = [(Int, ByteString)]
+
 check_news_db_existense :: IO Bool
 check_news_db_existense = do
     (host, user, password, database) <- confGetPostgresqlConfiguration
@@ -225,12 +228,12 @@ createNewsDb = do
     close conn2
     return ()
 
-getUsersList :: IO [[String]]
+getUsersList :: Int -> Int -> IO SqlUsersList
 -- getUsersList :: IO ByteString
-getUsersList = do
+getUsersList from limit = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query_ conn ("SELECT login FROM public.users") :: IO [[String]]
+    result <- query_ conn ( fromString $ "SELECT id, firstname, lastname, login, CASE WHEN avatar IS NULL THEN '' ELSE avatar END, create_date, admin FROM public.users ORDER BY id" ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") ++ ("OFFSET " ++ (show from)) ) :: IO SqlUsersList
     close conn
     --return . fromString . unlines . concat $ result
     return result
@@ -285,6 +288,17 @@ addPicture picture = do
     result <- execute conn "INSERT INTO public.pictures (picture) VALUES (?)" [picture]
     close conn
     return "Picture added"
+
+getPicturesList :: Int -> Int -> IO SqlPicturesList
+getPicturesList from limit = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- query_ conn ( fromString $ 
+        "SELECT id, picture FROM public.pictures ORDER BY id"
+        ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") 
+        ++ ("OFFSET " ++ (show from)) ) :: IO SqlPicturesList
+    close conn
+    return result
 
 checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
 checkLoginAndTokenAccordance login token = do
@@ -343,4 +357,14 @@ checkAdminRights token = do
 
     -- query for checking admin rights
     res <- query conn "SELECT tokens.user_id FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
+    close conn
     return $ length res /= 0
+
+totalNumberOfRowsInTable :: String -> IO Int
+totalNumberOfRowsInTable table = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_res <- query_ conn . fromString $ "SELECT count(*) FROM " ++ table ++ ";" :: IO [[Int]]
+    let res = head . head $ query_res
+    close conn
+    return res

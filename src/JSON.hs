@@ -3,10 +3,24 @@
 
 module JSON where
 
+import SQL ( SqlUsersList, SqlPicturesList )
 import Data.Aeson
 import Data.ByteString ( ByteString )
 import Data.ByteString.Lazy ( toStrict )
+import Data.ByteString.UTF8 ( toString )
 import GHC.Generics
+
+type PaginationData = (Total, Limit, From)
+type Total = Int
+type Limit = Int
+type From = Int
+
+type Token = ByteString
+
+data RequestResult = RequestResult {
+    res_result :: String,
+    res_error_description :: String
+} deriving (Generic, Show)
 
 data ResultUsersList = ResultUsersList {
     rul_limit   :: Int,
@@ -17,12 +31,29 @@ data ResultUsersList = ResultUsersList {
 
 data User = User {
     usr_id          :: Int,
-    urs_firstname   :: String,
-    urs_lastname    :: String,
-    urs_avatar      :: String,
-    urs_create_date :: String,
-    urs_admin       :: Bool
+    usr_firstname   :: String,
+    usr_lastname    :: String,
+    usr_login       :: String,
+    usr_avatar      :: String,
+    usr_create_date :: String,
+    usr_admin       :: Bool
 } deriving (Generic, Show)
+
+data ResultPicturesList = ResultPicturesList {
+    rpl_limit       :: Int,
+    rpl_next        :: String,
+    rpl_prev        :: String,
+    rpl_pictures    :: [Picture]
+} deriving (Generic, Show)
+
+data Picture = Picture {
+    pic_id      :: Int,
+    pic_picture :: String
+} deriving (Generic, Show)
+
+instance ToJSON RequestResult where
+    toJSON = genericToJSON defaultOptions {
+        fieldLabelModifier = drop 4 }
 
 instance ToJSON ResultUsersList where
     toJSON = genericToJSON defaultOptions {
@@ -32,7 +63,27 @@ instance ToJSON User where
     toJSON = genericToJSON defaultOptions {
         fieldLabelModifier = drop 4 }
 
-resultUsersList :: [[String]] -> ByteString
-resultUsersList r = toStrict . encode $ rul where
-    users = map \x -> 
-    rul = ResultUsersList 0 "" "" [User 0 "" "" "" "" False]
+instance ToJSON ResultPicturesList where
+    toJSON = genericToJSON defaultOptions {
+        fieldLabelModifier = drop 4 }
+
+instance ToJSON Picture where
+    toJSON = genericToJSON defaultOptions {
+        fieldLabelModifier = drop 4 }
+
+resultUsersList :: SqlUsersList -> PaginationData -> Token -> ByteString
+resultUsersList l (total, limit, from) token = toStrict . encode $ rul where
+    users = map (\(id, firstname, lastname, login, avatar, create_date, admin) -> User id firstname lastname login (toString avatar) (show create_date) admin) l
+    next = if total > from + limit then ( "/users?" ++ "action=list" ++ "&token=" ++ ( toString token ) ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
+    prev = if from > 0 then ( "users?" ++ "action=list" ++ "&token=" ++ ( toString token ) ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    rul = ResultUsersList limit next prev users
+
+resultRequest :: String -> String -> ByteString
+resultRequest res description = toStrict. encode $ RequestResult res description
+
+resultPicturesList :: SqlPicturesList -> PaginationData -> ByteString
+resultPicturesList l (total, limit, from) = toStrict . encode $ rpl where
+    pictures = map (\ (id, picture) -> Picture id (toString picture)) l
+    next = if total > from + limit then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
+    prev = if from > 0 then ( "pictures?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    rpl = ResultPicturesList limit next prev pictures
