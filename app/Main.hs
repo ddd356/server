@@ -30,6 +30,9 @@ import Network.Wai.Parse ( parseRequestBody, lbsBackEnd, FileInfo(..) )
 
 app :: Application
 app request respond
+
+    --TEST
+
     | length (pathInfo request) == 1 && last (pathInfo request) == "test" = do
         -- for testing purposes
 
@@ -46,17 +49,24 @@ app request respond
             status200
             [("Content-Type", "text/plain")]
             "Want to see a picture"
-    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" = do
-        -- processing posts endpoint
-        putStrLn "I've done some IO here"
-        respond $ responseLBS
-            status200
-            [("Content-Type", "text/plain")]
-            "Here must be returned posts"
-    | length (pathInfo request) == 1 && last (pathInfo request) == "auth" && action == "auth" = do
-        -- processing auth endpoint, action auth
+    
+    -- POSTS
 
-        -- in this action server will check credentials and return new token or error message
+    -- | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add" = do
+        -- processing posts endpoint, action list
+
+        -- in this action server adds a new post
+        --putStrLn "Processing add post request"    
+        --response_text <- processAddPostRequest request
+        --respond $ responseLBS
+            --status200
+            --[("Content-Type", "text/plain")]
+            --(fromStrict response_text)
+
+    -- AUTH
+
+    -- auth
+    | length (pathInfo request) == 1 && last (pathInfo request) == "auth" && action == "auth" = do
         putStrLn "Processing auth request"
         response_text <- processAuthRequest request
         respond $ responseLBS
@@ -64,10 +74,10 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
-    | length (pathInfo request) == 1 && last (pathInfo request) == "users" && action == "list" = do
-        -- processing users endpoint, action list
+    -- USERS
 
-        -- in this action server returns list of users, but only if querying user have admin rights
+    -- list
+    | length (pathInfo request) == 1 && last (pathInfo request) == "users" && action == "list" = do
         putStrLn "Processing list of users request"
         response_text <- processListUsersRequest request
         respond $ responseLBS
@@ -75,10 +85,8 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
+    -- add
     | length (pathInfo request) == 1 && last (pathInfo request) == "users" && action == "add" = do
-        -- processing users endpoint, action add
-
-        -- in this action server adds new user to database
         putStrLn "Processing add user request"
         response_text <- processAddUsersRequest request
         respond $ responseLBS
@@ -86,10 +94,10 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
-    | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "add" = do
-        -- processing authors endpoint, action add
+    -- AUTHORS
 
-        -- in this action server adds new author for user
+    -- add
+    | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "add" = do
         putStrLn "Processing add author request"    
         response_text <- processAddAuthorRequest request
         respond $ responseLBS
@@ -97,10 +105,8 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
+    -- delete
     | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "delete" = do
-        -- processing authors endpoint, action delete
-
-        -- in this action server deletes author for user
         putStrLn "Processing delete author request"    
         response_text <- processDeleteAuthorRequest request
         respond $ responseLBS
@@ -108,38 +114,46 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
-    -- | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add" = do
-        -- processing posts endpoint, action list
+    -- PICTURES
 
-        -- in this action server adds a new post
-        putStrLn "Processing add post request"    
-        response_text <- processAddPostRequest request
-        respond $ responseLBS
-            status200
-            [("Content-Type", "text/plain")]
-            (fromStrict response_text)
-
+    -- add
     | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "add" = do
-        -- processing pictures endpoint, action add
-
-        -- in this action server adds a new picture
         putStrLn "Processing add picture request"    
         response_text <- processAddPictureRequest request
         respond $ responseLBS
             status200
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
-
+    -- list
     | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "list" = do
-        -- processing pictures endpoint, action list
-
-        -- in this action server returns list of pictures with id
         putStrLn "Processing list pictures request"
         response_text <- processListPicturesRequest request
         respond $ responseLBS
             status200
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
+
+    -- CATEGORIES
+
+    -- add
+    | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "add" = do
+        putStrLn "Processing add category request"    
+        response_text <- processAddCategoryRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
+    -- list
+    | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "list" = do
+        putStrLn "Processing list category request"
+        response_text <- processListCategoriesRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
+    -- OTHERWISE
         
     | otherwise = do
         -- print info message to command line
@@ -158,6 +172,8 @@ app request respond
         query = queryString request
         action = fromMaybe "" . join $ lookup "action" query
 
+-- AUTH
+
 processAuthRequest :: Request -> IO ByteString
 processAuthRequest request = do
     -- lookup for parameters in request
@@ -174,6 +190,8 @@ processAuthRequest request = do
     -- saving new generated token into database
     addNewToken login token
     return token
+
+-- USERS
 
 processListUsersRequest :: Request -> IO ByteString
 processListUsersRequest request = do
@@ -215,6 +233,8 @@ processAddUsersRequest request = do
             addUser firstname lastname avatar login password admin
             return $ resultRequest "ok" ""
         _ -> return $ resultRequest "error" "You have no admin rights to watch users list"
+
+-- AUTHORS
 
 processAddAuthorRequest :: Request -> IO ByteString
 processAddAuthorRequest request = do
@@ -263,6 +283,8 @@ processDeleteAuthorRequest request = do
             return $ resultRequest "ok" ""
         _ -> return $ resultRequest "error" "You have no permission to delete author for this user"
 
+-- PICTURES
+
 processAddPictureRequest :: Request -> IO ByteString
 processAddPictureRequest request = do
     -- get params from request
@@ -282,6 +304,31 @@ processListPicturesRequest request = do
     res <- getPicturesList from limit
     total <- totalNumberOfRowsInTable "pictures"
     return $ resultPicturesList res (total, limit, from)
+
+-- CATEGORIES
+
+-- add
+processAddCategoryRequest :: Request -> IO ByteString
+processAddCategoryRequest request = do
+    -- get params from request
+    let name = fromMaybe "" . join $ lookup "name" $ queryString request
+
+    addCategory name
+    return $ resultRequest "ok" ""
+
+-- list
+processListCategoriesRequest :: Request -> IO ByteString
+processListCategoriesRequest request = do
+    -- get params from request
+    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let limit = fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+
+    res <- getCategoriesList from limit
+    total <- totalNumberOfRowsInTable "categories"
+    return $ resultCategoriesList res (total, limit, from)
+    
+
+-- POSTS
 
 processAddPostRequest :: Request -> IO ByteString
 processAddPostRequest request = do
@@ -316,6 +363,9 @@ main = do
 
     -- create database, if argument -create-db exists
     when ( elem "-create-db" args ) createNewsDb
+
+    -- update database, if argument -update-db exists
+    when ( elem "-update-db" args ) updateNewsDb
 
     -- check conf.cfg existense; create if it is not
     exist_conf_cfg <- doesFileExist "conf.cfg"

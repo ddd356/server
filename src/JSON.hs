@@ -3,7 +3,7 @@
 
 module JSON where
 
-import SQL ( SqlUsersList, SqlPicturesList )
+import SQL ( SqlUsersList, SqlPicturesList, SqlCategoriesList )
 import Data.Aeson
 import Data.ByteString ( ByteString )
 import Data.ByteString.Lazy ( toStrict )
@@ -20,6 +20,18 @@ type Token = ByteString
 data RequestResult = RequestResult {
     res_result :: String,
     res_error_description :: String
+} deriving (Generic, Show)
+
+data ResultCategoriesList = ResultCategoriesList {
+    rcl_limit       :: Int,
+    rcl_next        :: String,
+    rcl_prev        :: String,
+    rcl_categories  :: [Category]
+} deriving (Generic, Show)
+
+data Category = Category {
+    cat_id      :: Int,
+    cat_name    :: String
 } deriving (Generic, Show)
 
 data ResultUsersList = ResultUsersList {
@@ -71,6 +83,14 @@ instance ToJSON Picture where
     toJSON = genericToJSON defaultOptions {
         fieldLabelModifier = drop 4 }
 
+instance ToJSON ResultCategoriesList where
+    toJSON = genericToJSON defaultOptions {
+        fieldLabelModifier = drop 4 }
+
+instance ToJSON Category where
+    toJSON = genericToJSON defaultOptions {
+        fieldLabelModifier = drop 4 }
+
 resultUsersList :: SqlUsersList -> PaginationData -> Token -> ByteString
 resultUsersList l (total, limit, from) token = toStrict . encode $ rul where
     users = map (\(id, firstname, lastname, login, avatar, create_date, admin) -> User id firstname lastname login (toString avatar) (show create_date) admin) l
@@ -87,3 +107,10 @@ resultPicturesList l (total, limit, from) = toStrict . encode $ rpl where
     next = if total > from + limit then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
     prev = if from > 0 then ( "pictures?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
     rpl = ResultPicturesList limit next prev pictures
+
+resultCategoriesList :: SqlCategoriesList -> PaginationData -> ByteString
+resultCategoriesList l (total, limit, from) = toStrict . encode $ rcl where
+    categories = map (\ (id, category) -> Category id (toString category)) l
+    next = if total > from + limit then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
+    prev = if from > 0 then ( "pictures?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    rcl = ResultCategoriesList limit next prev categories

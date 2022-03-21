@@ -11,6 +11,7 @@ import Data.Time.LocalTime ( TimeOfDay(..) )
 
 type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
+type SqlCategoriesList = [(Int, ByteString)]
 
 check_news_db_existense :: IO Bool
 check_news_db_existense = do
@@ -53,6 +54,33 @@ confGetPostgresqlDatabase = do
     (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
     Cfg.require config "database"
 
+updateNewsDb :: IO ()
+updateNewsDb = do
+    res <- getVersion
+    let version = head . head $ res
+    sequence_ $ drop (version-1) migrations
+
+migrations :: [ IO () ]
+migrations = []
+    ++ [migration_v2]
+    -- ++ [migration_v...]
+
+migration_v2 :: IO ()
+migration_v2 = do
+    putStrLn "Migrating to version 2"
+    --(host, user, password, database) <- confGetPostgresqlConfiguration
+    --conn <- connect ( ConnectInfo host 5432 user password database )
+    --execute_ conn ""
+    --close conn
+
+getVersion :: IO [[Int]]
+getVersion = do
+    (host, user, password, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user password database )
+    res <- query_ conn "SELECT version FROM public.version;" :: IO [[Int]]
+    close conn
+    return res
+
 createNewsDb :: IO ()
 createNewsDb = do
     (host, user, password, database) <- confGetPostgresqlConfiguration
@@ -67,7 +95,7 @@ createNewsDb = do
 \     firstname character varying(100), \
 \     lastname character varying(100), \
 \     avatar bytea, \
-\     login character varying(100) CONSTRAINT unique_login UNIQUE, \
+\     login character varying(100), \
 \     password character varying(100), \
 \     create_date time(0) without time zone, \
 \     admin boolean, \
@@ -143,6 +171,10 @@ createNewsDb = do
 \     user_id integer NOT NULL, \
 \     token character(20) NOT NULL, \
 \     PRIMARY KEY (user_id) \
+\ ); \
+\ CREATE TABLE IF NOT EXISTS public.version \
+\ ( \
+\     version integer \
 \ ); \
 \  \
 \ ALTER TABLE IF EXISTS public.authors \
@@ -222,11 +254,17 @@ createNewsDb = do
 \     ON UPDATE NO ACTION \
 \     ON DELETE NO ACTION \
 \     NOT VALID; \
-\  \
-\ INSERT INTO public.users (login, password, admin) VALUES ('admin', 'admin', true); \
+\ \
+\ ALTER TABLE IF EXISTS public.users \
+\     ADD CONSTRAINT unique_login UNIQUE (login); \
+\ \
+\ INSERT INTO public.users (firstname, lastname, avatar, login, password, create_date, admin) VALUES ('', '', '' , 'admin', 'admin', '13:00:00', true); \
+\ INSERT INTO public.version (version) VALUES (1); \
 \ END;"
     close conn2
     return ()
+
+-- USERS
 
 getUsersList :: Int -> Int -> IO SqlUsersList
 -- getUsersList :: IO ByteString
@@ -246,6 +284,16 @@ addUser firstname lastname avatar login password admin = do
     close conn
     return "User added"
 
+-- AUTHORS
+
+deleteAuthor :: ByteString -> IO ByteString
+deleteAuthor login = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "DELETE FROM public.authors WHERE user_id IN (SELECT id FROM public.users WHERE users.login = ?)" [login]
+    close conn 
+    return "Author deleted"
+
 addAuthor :: ByteString -> ByteString -> IO ByteString
 addAuthor login description = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
@@ -257,21 +305,7 @@ addAuthor login description = do
     close conn
     return "Author added"
 
-checkCredentials :: ByteString -> ByteString -> IO Bool
-checkCredentials login password = do
-    (host, user, pass, database) <- confGetPostgresqlConfiguration
-    conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query conn "SELECT id from public.users where login = ? AND password = ? LIMIT 1" (login, password) :: IO [[Int]]
-    close conn
-    return . not . null $ result
-
-deleteAuthor :: ByteString -> IO ByteString
-deleteAuthor login = do
-    (host, user, pass, database) <- confGetPostgresqlConfiguration
-    conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- execute conn "DELETE FROM public.authors WHERE user_id IN (SELECT id FROM public.users WHERE users.login = ?)" [login]
-    close conn 
-    return "Author deleted"
+-- POSTS
 
 addPost :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> IO ByteString
 addPost login shortName createDate category text mainPicture = do
@@ -280,6 +314,8 @@ addPost login shortName createDate category text mainPicture = do
     result <- execute conn "INSERT INTO public.pictures ?" [login] -- temporary wrong line
     close conn
     return "Post added to drafts"
+
+-- PICTURES
     
 addPicture :: ByteString -> IO ByteString
 addPicture picture = do
@@ -297,6 +333,27 @@ getPicturesList from limit = do
         "SELECT id, picture FROM public.pictures ORDER BY id"
         ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") 
         ++ ("OFFSET " ++ (show from)) ) :: IO SqlPicturesList
+    close conn
+    return result
+
+-- CATEGORIES
+
+addCategory :: ByteString -> IO ByteString
+addCategory name = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- execute conn "INSERT INTO public.categories (name) VALUES (?)" [name]
+    close conn
+    return "Category added"
+
+getCategoriesList :: Int -> Int -> IO SqlCategoriesList
+getCategoriesList from limit = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- query_ conn ( fromString $
+        "SELECT id, name FROM public.categories ORDER BY id"
+        ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") 
+        ++ ("OFFSET " ++ (show from)) ) :: IO SqlCategoriesList
     close conn
     return result
 
@@ -368,3 +425,11 @@ totalNumberOfRowsInTable table = do
     let res = head . head $ query_res
     close conn
     return res
+
+checkCredentials :: ByteString -> ByteString -> IO Bool
+checkCredentials login password = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- query conn "SELECT id from public.users where login = ? AND password = ? LIMIT 1" (login, password) :: IO [[Int]]
+    close conn
+    return . not . null $ result

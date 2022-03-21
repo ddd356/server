@@ -5,35 +5,35 @@ set cpo&vim
 inoremap <C-U> u
 map! <S-Insert> *
 vmap  "*d
-nmap <silent> % <Plug>(MatchitNormalForward)
-xmap <silent> % <Plug>(MatchitVisualForward)
 omap <silent> % <Plug>(MatchitOperationForward)
+xmap <silent> % <Plug>(MatchitVisualForward)
+nmap <silent> % <Plug>(MatchitNormalForward)
 map Q gq
-nmap <silent> [% <Plug>(MatchitNormalMultiBackward)
-xmap <silent> [% <Plug>(MatchitVisualMultiBackward)
 omap <silent> [% <Plug>(MatchitOperationMultiBackward)
-nmap <silent> ]% <Plug>(MatchitNormalMultiForward)
-xmap <silent> ]% <Plug>(MatchitVisualMultiForward)
+xmap <silent> [% <Plug>(MatchitVisualMultiBackward)
+nmap <silent> [% <Plug>(MatchitNormalMultiBackward)
 omap <silent> ]% <Plug>(MatchitOperationMultiForward)
+xmap <silent> ]% <Plug>(MatchitVisualMultiForward)
+nmap <silent> ]% <Plug>(MatchitNormalMultiForward)
 xmap a% <Plug>(MatchitVisualTextObject)
-nmap <silent> g% <Plug>(MatchitNormalBackward)
-xmap <silent> g% <Plug>(MatchitVisualBackward)
 omap <silent> g% <Plug>(MatchitOperationBackward)
+xmap <silent> g% <Plug>(MatchitVisualBackward)
+nmap <silent> g% <Plug>(MatchitNormalBackward)
 vmap gx <Plug>NetrwBrowseXVis
 nmap gx <Plug>NetrwBrowseX
-nnoremap <silent> <Plug>(MatchitNormalForward) :call matchit#Match_wrapper('',1,'n')
-nnoremap <silent> <Plug>(MatchitNormalBackward) :call matchit#Match_wrapper('',0,'n')
-xnoremap <silent> <Plug>(MatchitVisualForward) :call matchit#Match_wrapper('',1,'v')m'gv``
-xnoremap <silent> <Plug>(MatchitVisualBackward) :call matchit#Match_wrapper('',0,'v')m'gv``
-onoremap <silent> <Plug>(MatchitOperationForward) :call matchit#Match_wrapper('',1,'o')
-onoremap <silent> <Plug>(MatchitOperationBackward) :call matchit#Match_wrapper('',0,'o')
-nnoremap <silent> <Plug>(MatchitNormalMultiBackward) :call matchit#MultiMatch("bW", "n")
-nnoremap <silent> <Plug>(MatchitNormalMultiForward) :call matchit#MultiMatch("W",  "n")
-xnoremap <silent> <Plug>(MatchitVisualMultiBackward) :call matchit#MultiMatch("bW", "n")m'gv``
-xnoremap <silent> <Plug>(MatchitVisualMultiForward) :call matchit#MultiMatch("W",  "n")m'gv``
-onoremap <silent> <Plug>(MatchitOperationMultiBackward) :call matchit#MultiMatch("bW", "o")
-onoremap <silent> <Plug>(MatchitOperationMultiForward) :call matchit#MultiMatch("W",  "o")
 xmap <silent> <Plug>(MatchitVisualTextObject) <Plug>(MatchitVisualMultiBackward)o<Plug>(MatchitVisualMultiForward)
+onoremap <silent> <Plug>(MatchitOperationMultiForward) :call matchit#MultiMatch("W",  "o")
+onoremap <silent> <Plug>(MatchitOperationMultiBackward) :call matchit#MultiMatch("bW", "o")
+xnoremap <silent> <Plug>(MatchitVisualMultiForward) :call matchit#MultiMatch("W",  "n")m'gv``
+xnoremap <silent> <Plug>(MatchitVisualMultiBackward) :call matchit#MultiMatch("bW", "n")m'gv``
+nnoremap <silent> <Plug>(MatchitNormalMultiForward) :call matchit#MultiMatch("W",  "n")
+nnoremap <silent> <Plug>(MatchitNormalMultiBackward) :call matchit#MultiMatch("bW", "n")
+onoremap <silent> <Plug>(MatchitOperationBackward) :call matchit#Match_wrapper('',0,'o')
+onoremap <silent> <Plug>(MatchitOperationForward) :call matchit#Match_wrapper('',1,'o')
+xnoremap <silent> <Plug>(MatchitVisualBackward) :call matchit#Match_wrapper('',0,'v')m'gv``
+xnoremap <silent> <Plug>(MatchitVisualForward) :call matchit#Match_wrapper('',1,'v')m'gv``
+nnoremap <silent> <Plug>(MatchitNormalBackward) :call matchit#Match_wrapper('',0,'n')
+nnoremap <silent> <Plug>(MatchitNormalForward) :call matchit#Match_wrapper('',1,'n')
 vnoremap <silent> <Plug>NetrwBrowseXVis :call netrw#BrowseXVis()
 nnoremap <silent> <Plug>NetrwBrowseX :call netrw#BrowseX(netrw#GX(),netrw#CheckIfRemote(netrw#GX()))
 vmap <C-X> "*d
@@ -103,13 +103,13 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 17 + 27) / 55)
-exe '2resize ' . ((&lines * 17 + 27) / 55)
-exe 'vert 2resize ' . ((&columns * 62 + 62) / 125)
-exe '3resize ' . ((&lines * 17 + 27) / 55)
-exe 'vert 3resize ' . ((&columns * 62 + 62) / 125)
-exe '4resize ' . ((&lines * 35 + 27) / 55)
-exe 'vert 4resize ' . ((&columns * 62 + 62) / 125)
+exe '1resize ' . ((&lines * 1 + 28) / 56)
+exe '2resize ' . ((&lines * 50 + 28) / 56)
+exe 'vert 2resize ' . ((&columns * 117 + 117) / 235)
+exe '3resize ' . ((&lines * 1 + 28) / 56)
+exe 'vert 3resize ' . ((&columns * 117 + 117) / 235)
+exe '4resize ' . ((&lines * 52 + 28) / 56)
+exe 'vert 4resize ' . ((&columns * 117 + 117) / 235)
 argglobal
 setlocal keymap=
 setlocal noarabic
@@ -235,12 +235,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 65 - ((11 * winheight(0) + 8) / 17)
+let s:l = 38 - ((0 * winheight(0) + 0) / 1)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-65
-normal! 019|
+38
+normal! 05|
 lcd ~\Desktop\haskell\server
 wincmd w
 argglobal
@@ -369,12 +369,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 181 - ((5 * winheight(0) + 8) / 17)
+let s:l = 55 - ((5 * winheight(0) + 25) / 50)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-181
-normal! 080|
+55
+normal! 0
 wincmd w
 argglobal
 if bufexists("~\Desktop\haskell\server\src\JSON.hs") | buffer ~\Desktop\haskell\server\src\JSON.hs | else | edit ~\Desktop\haskell\server\src\JSON.hs | endif
@@ -502,12 +502,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 16 - ((7 * winheight(0) + 8) / 17)
+let s:l = 90 - ((0 * winheight(0) + 0) / 1)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-16
-normal! 025|
+90
+normal! 024|
 wincmd w
 argglobal
 if bufexists("~\Desktop\haskell\server\src\SQL.hs") | buffer ~\Desktop\haskell\server\src\SQL.hs | else | edit ~\Desktop\haskell\server\src\SQL.hs | endif
@@ -635,26 +635,27 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 358 - ((27 * winheight(0) + 17) / 35)
+let s:l = 74 - ((26 * winheight(0) + 26) / 52)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-358
-normal! 014|
+74
+normal! 06|
 wincmd w
-exe '1resize ' . ((&lines * 17 + 27) / 55)
-exe '2resize ' . ((&lines * 17 + 27) / 55)
-exe 'vert 2resize ' . ((&columns * 62 + 62) / 125)
-exe '3resize ' . ((&lines * 17 + 27) / 55)
-exe 'vert 3resize ' . ((&columns * 62 + 62) / 125)
-exe '4resize ' . ((&lines * 35 + 27) / 55)
-exe 'vert 4resize ' . ((&columns * 62 + 62) / 125)
+4wincmd w
+exe '1resize ' . ((&lines * 1 + 28) / 56)
+exe '2resize ' . ((&lines * 50 + 28) / 56)
+exe 'vert 2resize ' . ((&columns * 117 + 117) / 235)
+exe '3resize ' . ((&lines * 1 + 28) / 56)
+exe 'vert 3resize ' . ((&columns * 117 + 117) / 235)
+exe '4resize ' . ((&lines * 52 + 28) / 56)
+exe 'vert 4resize ' . ((&columns * 117 + 117) / 235)
 tabnext 1
 badd +1 ~\Desktop\haskell\server\endpoints.txt
-badd +36 ~\Desktop\haskell\server\package.yaml
-badd +235 ~\Desktop\haskell\server\src\SQL.hs
-badd +1 ~\Desktop\haskell\server\src\JSON.hs
 badd +23 ~\Desktop\haskell\server\app\Main.hs
+badd +1 ~\Desktop\haskell\server\src\JSON.hs
+badd +235 ~\Desktop\haskell\server\src\SQL.hs
+badd +36 ~\Desktop\haskell\server\package.yaml
 badd +13 ~\Desktop\tmp\tst.hs
 badd +5 E:\server_config\usr_config.cfg
 badd +19 ~\Desktop\haskell\server\plan.txt
@@ -738,7 +739,6 @@ if file_readable(s:sx)
   exe "source " . fnameescape(s:sx)
 endif
 let &so = s:so_save | let &siso = s:siso_save
-nohlsearch
 doautoall SessionLoadPost
 unlet SessionLoad
 " vim: set ft=vim :
