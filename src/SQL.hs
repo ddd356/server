@@ -3,15 +3,18 @@
 module SQL where
 
 import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, close, execute_, execute, Binary(..) )
+import Database.PostgreSQL.Simple.Time ( parseLocalTime )
 import qualified Data.Configurator as Cfg ( autoReload, autoConfig, Worth(..), require )
 import Data.String ( fromString )
 import Data.ByteString ( ByteString )
 import Data.ByteString.UTF8 ( toString )
+import Data.ByteString.Lazy ( toStrict )
 import Random
 import Data.Time.LocalTime ( TimeOfDay(..) )
 import qualified Data.Text as T ( replace, Text(..), pack, unpack, append, intercalate )
 import qualified Data.Text.IO as T ( readFile )
-import Data.Aeson ( Value(..) )
+import Data.Aeson ( Value(..), encode )
+import Data.Either ( rights )
 
 type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
@@ -333,11 +336,13 @@ addAuthor login description = do
 
 -- POSTS
 
-addPost :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> IO ByteString
-addPost login shortName createDate category text mainPicture = do
+addPost :: ByteString -> ByteString -> Int -> ByteString -> Int -> ByteString -> Int -> IO ByteString
+addPost login shortName author createDate category text mainPicture = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- execute conn "INSERT INTO public.pictures ?" [login] -- temporary wrong line
+    query_text <- readFile "src\\SQL\\posts\\addPost.sql"
+    let create_date = head . rights $ [parseLocalTime "2020-12-21 12:00:00"]
+    result <- execute conn (fromString query_text) (shortName, create_date, author, category, text, mainPicture)
     close conn
     return "Post added to drafts"
 
@@ -347,7 +352,7 @@ addPicture :: ByteString -> IO ByteString
 addPicture picture = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- execute conn "INSERT INTO public.pictures (picture) VALUES (?)" [picture]
+    result <- execute conn "INSERT INTO public.pictures (picture) VALUES (?)" [Binary picture]
     close conn
     return "Picture added"
 
@@ -385,8 +390,6 @@ getCategoriesListOld from limit = do
     close conn
     return result
 
---getCategoriesList :: Int -> Int -> IO ByteString
---getCategoriesList from limit = do
 getCategoriesList :: IO ByteString
 getCategoriesList = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
@@ -405,11 +408,11 @@ getCategoriesList = do
     let query_text = T.unpack $ categoriesQueryText h t e max_lvl
     putStrLn query_text
     res <- query_ conn ( fromString query_text ) :: IO [[Value]]
-    let json = if length res == 0 then "[]" else fromString . show . head . head $ res
+    let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
 
     close conn
---  return result
-    return $ fromString json
+
+    return json
 
 -- builds query text from head and tail. 
 categoriesQueryText :: T.Text -> T.Text -> T.Text -> Int -> T.Text -- head, tail, end, max_lvl

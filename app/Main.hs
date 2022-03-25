@@ -50,16 +50,16 @@ app request respond
     
     -- POSTS
 
-    -- | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add" = do
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add" = do
         -- processing posts endpoint, action list
 
         -- in this action server adds a new post
-        --putStrLn "Processing add post request"    
-        --response_text <- processAddPostRequest request
-        --respond $ responseLBS
-            --status200
-            --[("Content-Type", "text/plain")]
-            --(fromStrict response_text)
+        putStrLn "Processing add post request"    
+        response_text <- processAddPostRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
 
     -- AUTH
 
@@ -334,12 +334,12 @@ processAddPostRequest request = do
     -- get params from request
     let token = fromMaybe "" . join $ lookup "token" $ queryString request
     let login = fromMaybe "" . join $ lookup "login" $ queryString request
+    let author = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "author" $ queryString request :: Int
     let shortName = fromMaybe "" . join $ lookup "shortname" $ queryString request
-    let createDate = fromMaybe "" . join $ lookup "createdate" $ queryString request
-    let category = fromMaybe "" . join $ lookup "category" $ queryString request
+    let createDate = fromMaybe "" . join $ lookup "create_date" $ queryString request
+    let category = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "category" $ queryString request :: Int
     let text = fromMaybe "" . join $ lookup "text" $ queryString request
-    res <- parseRequestBody lbsBackEnd request
-    let mainPicture = toStrict . fileContent . snd . head . snd $ res
+    let mainPicture = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "main_picture" $ queryString request :: Int
 
     -- check admin rights
     admin_rights <- checkAdminRights token
@@ -352,7 +352,7 @@ processAddPostRequest request = do
 
     -- in case of credential correctness add a new author; otherwise return error message
     case credentials_correct of
-        True -> addPost login shortName createDate category text mainPicture
+        True -> addPost login shortName author createDate category text mainPicture
         _ -> return "You have no permission to delete author for this user"
 
 main :: IO ()
