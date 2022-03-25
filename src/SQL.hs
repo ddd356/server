@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module SQL where
 
 import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, close, execute_, execute, Binary(..) )
@@ -8,6 +9,9 @@ import Data.ByteString ( ByteString )
 import Data.ByteString.UTF8 ( toString )
 import Random
 import Data.Time.LocalTime ( TimeOfDay(..) )
+import qualified Data.Text as T ( replace, Text(..), pack, unpack, append, intercalate )
+import qualified Data.Text.IO as T ( readFile )
+import Data.Aeson ( Value(..) )
 
 type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
@@ -54,6 +58,8 @@ confGetPostgresqlDatabase = do
     (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
     Cfg.require config "database"
 
+-- UPDATING DB
+
 updateNewsDb :: IO ()
 updateNewsDb = do
     res <- getVersion
@@ -68,10 +74,28 @@ migrations = []
 migration_v2 :: IO ()
 migration_v2 = do
     putStrLn "Migrating to version 2"
-    --(host, user, password, database) <- confGetPostgresqlConfiguration
-    --conn <- connect ( ConnectInfo host 5432 user password database )
-    --execute_ conn ""
-    --close conn
+    (host, user, password, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user password database )
+    
+    -- add column "parent_id"
+    execute_ conn "ALTER TABLE IF EXISTS public.categories \
+\   ADD COLUMN parent_id integer;"
+
+    -- add constraint "parent_id_foreign"
+    execute_ conn "ALTER TABLE IF EXISTS public.categories \
+\   ADD CONSTRAINT parent_id_foreign FOREIGN KEY (parent_id) \
+\   REFERENCES public.categories (id) MATCH SIMPLE \
+\   ON UPDATE NO ACTION \
+\   ON DELETE NO ACTION \
+\   NOT VALID; \
+\   CREATE INDEX IF NOT EXISTS fki_parent_id_foreign \
+\   ON public.categories(parent_id);"
+
+    -- raise version
+    execute_ conn "UPDATE version SET version = 2"
+
+    close conn
+    return ()
 
 getVersion :: IO [[Int]]
 getVersion = do
@@ -80,6 +104,8 @@ getVersion = do
     res <- query_ conn "SELECT version FROM public.version;" :: IO [[Int]]
     close conn
     return res
+
+-- CREATING DB
 
 createNewsDb :: IO ()
 createNewsDb = do
@@ -338,16 +364,18 @@ getPicturesList from limit = do
 
 -- CATEGORIES
 
-addCategory :: ByteString -> IO ByteString
-addCategory name = do
+addCategory :: ByteString -> Int -> IO ByteString
+addCategory name parent_id = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- execute conn "INSERT INTO public.categories (name) VALUES (?)" [name]
+    result <- case parent_id of
+        0 -> execute conn "INSERT INTO public.categories (name) VALUES (?)" [name]
+        _ -> execute conn "INSERT INTO public.categories (name, parent_id) VALUES (?, ?)" (name, parent_id)
     close conn
     return "Category added"
 
-getCategoriesList :: Int -> Int -> IO SqlCategoriesList
-getCategoriesList from limit = do
+getCategoriesListOld :: Int -> Int -> IO SqlCategoriesList
+getCategoriesListOld from limit = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     result <- query_ conn ( fromString $
@@ -356,6 +384,40 @@ getCategoriesList from limit = do
         ++ ("OFFSET " ++ (show from)) ) :: IO SqlCategoriesList
     close conn
     return result
+
+--getCategoriesList :: Int -> Int -> IO ByteString
+--getCategoriesList from limit = do
+getCategoriesList :: IO ByteString
+getCategoriesList = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    -- get a maximum nested level of categories
+    query_text_max_lvl <- readFile "src\\SQL\\categories\\max_lvl.sql"
+    res_max_lvl <- query_ conn (fromString query_text_max_lvl) :: IO [[Int]]
+    let max_lvl = if length res_max_lvl == 0 then 0 else head . head $ res_max_lvl :: Int
+
+    h <- T.readFile "src\\SQL\\categories\\head.sql"
+    t <- T.readFile "src\\SQL\\categories\\tails.sql"
+    e <- T.readFile "src\\SQL\\categories\\end.sql"
+    
+    -- prepare query_text
+    let query_text = T.unpack $ categoriesQueryText h t e max_lvl
+    putStrLn query_text
+    res <- query_ conn ( fromString query_text ) :: IO [[Value]]
+    let json = if length res == 0 then "[]" else fromString . show . head . head $ res
+
+    close conn
+--  return result
+    return $ fromString json
+
+-- builds query text from head and tail. 
+categoriesQueryText :: T.Text -> T.Text -> T.Text -> Int -> T.Text -- head, tail, end, max_lvl
+categoriesQueryText h t e m = T.append hd $ T.append tails e where
+    hd = T.replace "?" (T.pack . show $ m) h :: T.Text
+    tails = T.intercalate ", " . reverse . zipWith placeLevel [0..(m-1)] $ repeat t :: T.Text
+    placeLevel l txt = (T.replace "?2" ( intToText $ l+1) $ T.replace "?1" ( intToText l) txt) :: T.Text
+    intToText = T.pack . show
 
 checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
 checkLoginAndTokenAccordance login token = do

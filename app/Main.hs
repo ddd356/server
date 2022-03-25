@@ -26,8 +26,6 @@ import Control.Monad ( join )
 import Data.String ( fromString )
 import Network.Wai.Parse ( parseRequestBody, lbsBackEnd, FileInfo(..) )
 
-        
-
 app :: Application
 app request respond
 
@@ -312,8 +310,9 @@ processAddCategoryRequest :: Request -> IO ByteString
 processAddCategoryRequest request = do
     -- get params from request
     let name = fromMaybe "" . join $ lookup "name" $ queryString request
+    let parent_id = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "parent_id" $ queryString request :: Int
 
-    addCategory name
+    addCategory name parent_id
     return $ resultRequest "ok" ""
 
 -- list
@@ -323,10 +322,10 @@ processListCategoriesRequest request = do
     let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
     let limit = fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
 
-    res <- getCategoriesList from limit
-    total <- totalNumberOfRowsInTable "categories"
-    return $ resultCategoriesList res (total, limit, from)
-    
+    res <- getCategoriesList
+    --total <- totalNumberOfRowsInTable "categories"
+    --return $ resultCategoriesList res (total, limit, from)
+    return res
 
 -- POSTS
 

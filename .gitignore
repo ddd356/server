@@ -29,3 +29,5 @@ plan.txt
 *.pgerd
 *.ods
 *.ods#
+tmp1
+Session.vim

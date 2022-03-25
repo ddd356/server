@@ -31,7 +31,8 @@ data ResultCategoriesList = ResultCategoriesList {
 
 data Category = Category {
     cat_id      :: Int,
-    cat_name    :: String
+    cat_name    :: String,
+    cat_subcategories  :: [Category]
 } deriving (Generic, Show)
 
 data ResultUsersList = ResultUsersList {
@@ -110,7 +111,7 @@ resultPicturesList l (total, limit, from) = toStrict . encode $ rpl where
 
 resultCategoriesList :: SqlCategoriesList -> PaginationData -> ByteString
 resultCategoriesList l (total, limit, from) = toStrict . encode $ rcl where
-    categories = map (\ (id, category) -> Category id (toString category)) l
+    categories = map (\ (id, category) -> Category id (toString category) []) l :: [Category]
     next = if total > from + limit then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
     prev = if from > 0 then ( "pictures?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
     rcl = ResultCategoriesList limit next prev categories
