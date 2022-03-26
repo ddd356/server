@@ -61,6 +61,28 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "from_draft" = do
+        -- processing posts endpoint, action from_draft
+
+        -- in this action server publish post from draft
+        putStrLn "Processing from draft request"    
+        response_text <- processFromDraftRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "to_draft" = do
+        -- processing posts endpoint, action from_draft
+
+        -- in this action server publish post from draft
+        putStrLn "Processing from draft request"    
+        response_text <- processToDraftRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
     -- AUTH
 
     -- auth
@@ -353,6 +375,46 @@ processAddPostRequest request = do
     -- in case of credential correctness add a new author; otherwise return error message
     case credentials_correct of
         True -> addPost login shortName author createDate category text mainPicture
+        _ -> return "You have no permission to delete author for this user"
+
+processFromDraftRequest :: Request -> IO ByteString
+processFromDraftRequest request = do
+    -- get params from request
+    let token = fromMaybe "" . join $ lookup "token" $ queryString request
+    let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
+
+    -- check admin rights
+    admin_rights <- checkAdminRights token
+
+    -- check accordance of post and token
+    token_accords <- checkPostAndTokenAccordance postID token
+
+    -- credentials may be correct if user have admin rights or token accords to login
+    let credentials_correct = admin_rights || token_accords
+
+    -- in case of credential correctness add a new author; otherwise return error message
+    case credentials_correct of
+        True -> fromDraft postID
+        _ -> return "You have no permission to delete author for this user"
+
+processToDraftRequest :: Request -> IO ByteString
+processToDraftRequest request = do
+    -- get params from request
+    let token = fromMaybe "" . join $ lookup "token" $ queryString request
+    let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
+
+    -- check admin rights
+    admin_rights <- checkAdminRights token
+
+    -- check accordance of post and token
+    token_accords <- checkPostAndTokenAccordance postID token
+
+    -- credentials may be correct if user have admin rights or token accords to login
+    let credentials_correct = admin_rights || token_accords
+
+    -- in case of credential correctness add a new author; otherwise return error message
+    case credentials_correct of
+        True -> toDraft postID
         _ -> return "You have no permission to delete author for this user"
 
 main :: IO ()

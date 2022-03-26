@@ -346,6 +346,26 @@ addPost login shortName author createDate category text mainPicture = do
     close conn
     return "Post added to drafts"
 
+fromDraft :: Int -> IO ByteString
+fromDraft postID = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\fromDraft.sql"
+    result <- execute conn (fromString query_text) [postID]
+    putStrLn $ show result
+    close conn
+    return "Post published from drafts"
+
+toDraft :: Int -> IO ByteString
+toDraft postID = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\toDraft.sql"
+    result <- execute conn (fromString query_text) [postID]
+    putStrLn $ show result
+    close conn
+    return "Post moved to drafts"
+
 -- PICTURES
     
 addPicture :: ByteString -> IO ByteString
@@ -429,6 +449,16 @@ checkLoginAndTokenAccordance login token = do
     result <- query conn "SELECT tokens.user_id FROM public.tokens INNER JOIN public.users ON users.id = tokens.user_id WHERE tokens.token = ? AND users.login = ?" (token, login) :: IO [[Int]]
     close conn
     return . not . null $ result
+
+checkPostAndTokenAccordance :: Int -> ByteString -> IO Bool
+checkPostAndTokenAccordance postID token = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\postAndTokenAccordance.sql"
+    result <- query conn (fromString query_text) [postID] :: IO [[Int]]
+    close conn
+    return . not . null $ result
+    
 
 generateToken :: ByteString -> IO ByteString
 generateToken login = do
