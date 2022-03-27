@@ -28,6 +28,7 @@ library
       JSON
       Lib
       Random
+      RequestProcessors
       SQL
       SQL.Handle
   other-modules:

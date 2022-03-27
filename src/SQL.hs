@@ -366,6 +366,24 @@ toDraft postID = do
     close conn
     return "Post moved to drafts"
 
+addTagToPost :: Int -> Int -> IO ByteString
+addTagToPost postID tagID = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\addTagToPost.sql"
+    res <- execute conn (fromString query_text) (postID, tagID)
+    close conn
+    return "Tag added to post"
+ 
+removeTagFromPost :: Int -> Int -> IO ByteString
+removeTagFromPost postID tagID = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\removeTagFromPost.sql"
+    res <- execute conn (fromString query_text) (postID, tagID)
+    close conn
+    return "Tag removed from post"
+
 -- PICTURES
     
 addPicture :: ByteString -> IO ByteString
@@ -442,6 +460,26 @@ categoriesQueryText h t e m = T.append hd $ T.append tails e where
     placeLevel l txt = (T.replace "?2" ( intToText $ l+1) $ T.replace "?1" ( intToText l) txt) :: T.Text
     intToText = T.pack . show
 
+-- TAGS
+
+addTag :: ByteString -> IO ByteString
+addTag name = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    res <- execute conn "INSERT INTO public.tags (name) VALUES (?)" [name]
+    close conn
+    return "Tag added"
+
+-- CHECK CREDENTIALS
+
+checkCredentials :: ByteString -> ByteString -> IO Bool
+checkCredentials login password = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    result <- query conn "SELECT id from public.users where login = ? AND password = ? LIMIT 1" (login, password) :: IO [[Int]]
+    close conn
+    return . not . null $ result
+
 checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
 checkLoginAndTokenAccordance login token = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
@@ -512,6 +550,8 @@ checkAdminRights token = do
     close conn
     return $ length res /= 0
 
+-- OTHER
+
 totalNumberOfRowsInTable :: String -> IO Int
 totalNumberOfRowsInTable table = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
@@ -520,11 +560,3 @@ totalNumberOfRowsInTable table = do
     let res = head . head $ query_res
     close conn
     return res
-
-checkCredentials :: ByteString -> ByteString -> IO Bool
-checkCredentials login password = do
-    (host, user, pass, database) <- confGetPostgresqlConfiguration
-    conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query conn "SELECT id from public.users where login = ? AND password = ? LIMIT 1" (login, password) :: IO [[Int]]
-    close conn
-    return . not . null $ result
