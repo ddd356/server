@@ -1,4 +1,4 @@
-create function cats(i integer) returns jsonb as '
+create function cat_with_parents(i integer) returns jsonb as '
 with recursive
 t1 as (
 	select id, name, pid, 1 as n

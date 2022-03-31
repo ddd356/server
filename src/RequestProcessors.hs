@@ -354,7 +354,7 @@ processListPostsRequest request = do
     let limit = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
     let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
 
-    getPostsList (createdAt, createdUntil, createdSince, author, categoryID, nameContains, textContains) sortBy (limit, from)
+    getPostsList (FilteringParameters createdAt createdUntil createdSince author categoryID nameContains textContains) (SortingParameters SortByNothing) (PaginationParameters limit from)
 
 
 -- TAGS

@@ -4,11 +4,15 @@ module SQL where
 
 import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, close, execute_, execute, Binary(..) )
 import Database.PostgreSQL.Simple.Time ( parseLocalTime )
+import Database.PostgreSQL.Simple.ToRow ( ToRow(..) )
+import Database.PostgreSQL.Simple.ToField ( ToField(..), toField, Action(..) )
 import qualified Data.Configurator as Cfg ( autoReload, autoConfig, Worth(..), require )
 import Data.String ( fromString )
 import Data.ByteString ( ByteString )
+import qualified Data.ByteString as BS ( null, append )
 import Data.ByteString.UTF8 ( toString )
 import Data.ByteString.Lazy ( toStrict )
+import Data.ByteString.Builder ( byteString )
 import Random
 import Data.Time.LocalTime ( TimeOfDay(..) )
 import qualified Data.Text as T ( replace, Text(..), pack, unpack, append, intercalate )
@@ -25,7 +29,7 @@ data FilteringParameters = FilteringParameters {
     created_until :: ByteString,
     created_since :: ByteString,
     author :: ByteString,
-    category_id :: Int
+    category_id :: Int,
     name_contains :: ByteString,
     text_contains :: ByteString
 }
@@ -39,7 +43,43 @@ data SortingParameters = SortingParameters {
     sort_by :: SortingField
 }
 
-data SortingField = SortByData | SortByAuthor | SortByCategory | SortByPicturesQuantity
+data SortingField = SortByData | SortByAuthor | SortByCategory | SortByPicturesQuantity | SortByNothing deriving Eq
+
+instance ToRow FilteringParameters where
+    toRow fp = []
+        ++ (if BS.null p1 then [] else [toField p1])
+        ++ (if BS.null p2 then [] else [toField p2])
+        ++ (if BS.null p3 then [] else [toField p3])
+        ++ (if BS.null p4 then [] else [toField p4])
+        ++ (if p5 == 0 then [] else [toField p5])
+        ++ (if BS.null p6 then [] else [toField $ "%" `BS.append` p6 `BS.append` "%"])
+        ++ (if BS.null p7 then [] else [toField $ "%" `BS.append` p7 `BS.append` "%"]) where
+            p1 = created_at fp
+            p2 = created_until fp
+            p3 = created_since fp
+            p4 = author fp
+            p5 = category_id fp
+            p6 = name_contains fp
+            p7 = text_contains fp
+
+instance ToRow PaginationParameters where
+    toRow pp = []
+        ++ (if p1 == 0 then [] else [toField p1])
+        ++ (if p2 == 0 then [] else [toField p2]) where
+            p1 = limit pp
+            p2 = from pp
+
+instance ToRow SortingParameters where
+    toRow sp = []
+        ++ if p1 == SortByNothing then [] else [toField p1] where
+            p1 = sort_by sp
+
+instance ToField SortingField where
+    toField SortByData = Plain ( byteString "create_date")
+    toField SortByAuthor = Plain ( byteString "author" )
+    toField SortByCategory = Plain ( byteString "category" )
+    toField SortByPicturesQuantity = Plain ( byteString "author" ) -- temporary
+    toField SortByNothing = Plain ( byteString "id" ) -- default
 
 check_news_db_existense :: IO Bool
 check_news_db_existense = do
@@ -104,7 +144,7 @@ migration_v2 = do
     
     -- add column "parent_id"
     query_text_1 <- readFile "src\\SQL\\migrations\\v2\\add_column_parent_id.sql"
-    execute_ conn (fromString query_text)
+    execute_ conn (fromString query_text_1)
 
     -- add constraint "parent_id_foreign"
     query_text_2 <- readFile "src\\SQL\\migrations\\v2\\add_constraint_parent_id_foreign.sql"
@@ -122,9 +162,21 @@ migration_v3 = do
     (host, user, password, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user password database )
 
-    -- add function cat_with_parents
-    query_text <- readFile "src\\SQL\\migrations\\v3\\add_function_cat_with_parents.sql"
-    execute_ conn (fromString query_text)
+    -- add function jsonb_cat_with_parents
+    query_text_1 <- readFile "src\\SQL\\migrations\\v3\\add_function_jsonb_cat_with_parents.sql"
+    execute_ conn (fromString query_text_1)
+
+    -- add function jsonb_post_pictures
+    query_text_2 <- readFile "src\\SQL\\migrations\\v3\\add_function_jsonb_post_pictures.sql"
+    execute_ conn (fromString query_text_2)
+
+    -- add function jsonb_post_tags
+    query_text_3 <- readFile "src\\SQL\\migrations\\v3\\add_function_jsonb_post_tags.sql"
+    execute_ conn (fromString query_text_3)
+
+    -- add function uri_picture
+    query_text_4 <- readFile "src\\SQL\\migrations\\v3\\add_function_uri_picture.sql"
+    execute_ conn (fromString query_text_4)
 
     -- raise version
     execute_ conn "UPDATE version SET version = 3"
@@ -437,8 +489,44 @@ getPostsList :: FilteringParameters -> SortingParameters -> PaginationParameters
 getPostsList fp sp pp = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\getPostsList.sql"
+    query_text_base <- readFile "src\\SQL\\posts\\getPostsList.sql"
+    
+    let query_text =
+            query_text_base
+            -- filtering parameters
+            ++ (if BS.null $ created_at fp  then "" else " AND create_date = ?")
+            ++ (if BS.null $ created_until fp then "" else " AND create_date <= ?")
+            ++ (if BS.null $ created_since fp then "" else " AND create_date >= ?")
+            ++ (if BS.null $ author fp then "" else " AND author = ?")
+            ++ (if category_id fp == 0 then "" else " AND category = ?")
+            ++ (if BS.null $ name_contains fp then "" else " AND short_name ILIKE ?")
+            ++ (if BS.null $ text_contains fp then "" else " AND text ILIKE ?")
+            -- sorting parameters)
+            ++ (if sort_by sp == SortByNothing then "" else " ORDER BY ?")
+            -- pagination parameters)
+            ++ (if from pp == 0 then "" else " OFFSET ?")
+            ++ (if limit pp == 0 then "" else " FETCH ?")
+    putStrLn query_text
+    putStrLn . show $ text_contains fp
+    putStrLn . show . toRow $ fp
+    res <- query conn (fromString query_text) (toRow fp ++ toRow sp ++ toRow pp) :: IO [[Value]]
+    putStrLn . show . length $ res
+    let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
+    putStrLn . show $ json
+
     close conn
+    return "tmp"
+
+--addBytestringFilterToQuery :: Query -> FilteringParameters -> ( FilteringParameters -> ByteString ) String -> Query
+--addBytestringFilterToQuery q fp f t = 
+--    if f fp == "" then q else fromString ( show q ++ t)
+
+testQ :: IO ()
+testQ = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    res <- query conn (fromString "SELECT ? + ?") ( [2,2] :: [Int]) :: IO [[Int]]
+    putStrLn . show $ res
 
 -- PICTURES
     
