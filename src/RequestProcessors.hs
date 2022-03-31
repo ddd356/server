@@ -292,6 +292,70 @@ processRemoveTagFromPostRequest request = do
         True -> removeTagFromPost postID tagID
         _ -> return "You have no permission to delete author for this user"
 
+processAddPictureToPostRequest :: Request -> IO ByteString
+processAddPictureToPostRequest request = do
+    -- get params from request
+    let token = fromMaybe "" . join $ lookup "token" $ queryString request
+    let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
+    let pictureID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "picture_id" $ queryString request :: Int
+
+    -- check admin rights
+    admin_rights <- checkAdminRights token
+
+    -- check accordance of post and token
+    token_accords <- checkPostAndTokenAccordance postID token
+
+    -- credentials may be correct if user have admin rights or token accords to login
+    let credentials_correct = admin_rights || token_accords
+
+    -- in case of credential correctness add a new author; otherwise return error message
+    case credentials_correct of
+        True -> addPictureToPost postID pictureID
+        _ -> return "You have no permission to add picture to post for this user"
+
+processRemovePictureFromPostRequest :: Request -> IO ByteString
+processRemovePictureFromPostRequest request = do
+    -- get params from request
+    let token = fromMaybe "" . join $ lookup "token" $ queryString request
+    let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
+    let pictureID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "picture_id" $ queryString request :: Int
+
+    -- check admin rights
+    admin_rights <- checkAdminRights token
+
+    -- check accordance of post and token
+    token_accords <- checkPostAndTokenAccordance postID token
+
+    -- credentials may be correct if user have admin rights or token accords to login
+    let credentials_correct = admin_rights || token_accords
+
+    -- in case of credential correctness add a new author; otherwise return error message
+    case credentials_correct of
+        True -> removePictureFromPost postID pictureID
+        _ -> return "You have no permission to remove picture from post for this user"
+
+processListPostsRequest :: Request -> IO ByteString
+processListPostsRequest request = do
+    -- get params from request
+
+    -- filters
+    let createdAt = fromMaybe "" . join $ lookup "created_at" $ queryString request
+    let createdUntil = fromMaybe "" . join $ lookup "created_until" $ queryString request
+    let createdSince = fromMaybe "" . join $ lookup "created_since" $ queryString request
+    let author = fromMaybe "" . join $ lookup "author" $ queryString request
+    let categoryID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "category_id" $ queryString request :: Int
+    let nameContains = fromMaybe "" . join $ lookup "name_contains" $ queryString request
+    let textContains = fromMaybe "" . join $ lookup "text_contains" $ queryString request
+
+    -- sorting
+    let sortBy = fromMaybe "" . join $ lookup "sortBy" $ queryString request
+
+    -- pagination
+    let limit = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
+
+    getPostsList (createdAt, createdUntil, createdSince, author, categoryID, nameContains, textContains) sortBy (limit, from)
+
 
 -- TAGS
 

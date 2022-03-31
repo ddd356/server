@@ -106,6 +106,39 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add_picture" = do
+        -- processing posts endpoint, action add_picture
+
+        -- in this action server adds tag to a post
+        putStrLn "Processing add picture to post request"
+        response_text <- processAddPictureToPostRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "remove_picture" = do
+        -- processing posts endpoint, action remove_picture
+
+        -- in this action server removes picture from a post
+        putStrLn "Processing remove picture from post request"
+        response_text <- processRemovePictureFromPostRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "list" = do
+        -- processing posts endpoint, action remove_picture
+
+        -- in this action server removes picture from a post
+        putStrLn "Processing post listing request"
+        response_text <- processListPostsRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
     -- AUTH
 
     -- auth

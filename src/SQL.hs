@@ -20,6 +20,27 @@ type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
 type SqlCategoriesList = [(Int, ByteString)]
 
+data FilteringParameters = FilteringParameters {
+    created_at :: ByteString,
+    created_until :: ByteString,
+    created_since :: ByteString,
+    author :: ByteString,
+    category_id :: Int
+    name_contains :: ByteString,
+    text_contains :: ByteString
+}
+
+data PaginationParameters = PaginationParameters {
+    limit :: Int,
+    from :: Int
+}
+
+data SortingParameters = SortingParameters {
+    sort_by :: SortingField
+}
+
+data SortingField = SortByData | SortByAuthor | SortByCategory | SortByPicturesQuantity
+
 check_news_db_existense :: IO Bool
 check_news_db_existense = do
     (host, user, password, database) <- confGetPostgresqlConfiguration
@@ -72,6 +93,7 @@ updateNewsDb = do
 migrations :: [ IO () ]
 migrations = []
     ++ [migration_v2]
+    ++ [migration_v3]
     -- ++ [migration_v...]
 
 migration_v2 :: IO ()
@@ -81,22 +103,31 @@ migration_v2 = do
     conn <- connect ( ConnectInfo host 5432 user password database )
     
     -- add column "parent_id"
-    execute_ conn "ALTER TABLE IF EXISTS public.categories \
-\   ADD COLUMN parent_id integer;"
+    query_text_1 <- readFile "src\\SQL\\migrations\\v2\\add_column_parent_id.sql"
+    execute_ conn (fromString query_text)
 
     -- add constraint "parent_id_foreign"
-    execute_ conn "ALTER TABLE IF EXISTS public.categories \
-\   ADD CONSTRAINT parent_id_foreign FOREIGN KEY (parent_id) \
-\   REFERENCES public.categories (id) MATCH SIMPLE \
-\   ON UPDATE NO ACTION \
-\   ON DELETE NO ACTION \
-\   NOT VALID; \
-\   CREATE INDEX IF NOT EXISTS fki_parent_id_foreign \
-\   ON public.categories(parent_id);"
+    query_text_2 <- readFile "src\\SQL\\migrations\\v2\\add_constraint_parent_id_foreign.sql"
+    execute_ conn (fromString query_text_2)
 
     -- raise version
     execute_ conn "UPDATE version SET version = 2"
 
+    close conn
+    return ()
+
+migration_v3 :: IO ()
+migration_v3 = do
+    putStrLn "Migration to version 3"
+    (host, user, password, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user password database )
+
+    -- add function cat_with_parents
+    query_text <- readFile "src\\SQL\\migrations\\v3\\add_function_cat_with_parents.sql"
+    execute_ conn (fromString query_text)
+
+    -- raise version
+    execute_ conn "UPDATE version SET version = 3"
     close conn
     return ()
 
@@ -383,6 +414,31 @@ removeTagFromPost postID tagID = do
     res <- execute conn (fromString query_text) (postID, tagID)
     close conn
     return "Tag removed from post"
+
+addPictureToPost :: Int -> Int -> IO ByteString
+addPictureToPost postID pictureID = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\addPictureToPost.sql"
+    res <- execute conn (fromString query_text) (postID, pictureID)
+    close conn
+    return "Picture added to post"
+
+removePictureFromPost :: Int -> Int -> IO ByteString
+removePictureFromPost postID pictureID = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\removePictureFromPost.sql"
+    res <- execute conn (fromString query_text) (postID, pictureID)
+    close conn
+    return "Picture removed from post"
+
+getPostsList :: FilteringParameters -> SortingParameters -> PaginationParameters -> IO ByteString
+getPostsList fp sp pp = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\posts\\getPostsList.sql"
+    close conn
 
 -- PICTURES
     
