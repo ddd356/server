@@ -229,6 +229,15 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
+    -- modify
+    | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "update" = do
+        putStrLn "Processing update category request"
+        response_text <- processUpdateCategoryRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
     -- TAGS
 
     -- add

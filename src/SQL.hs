@@ -2,7 +2,7 @@
 
 module SQL where
 
-import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, close, execute_, execute, Binary(..) )
+import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, close, execute_, execute, Binary(..), Only(..) )
 import Database.PostgreSQL.Simple.Time ( parseLocalTime )
 import Database.PostgreSQL.Simple.ToRow ( ToRow(..) )
 import Database.PostgreSQL.Simple.ToField ( ToField(..), toField, Action(..) )
@@ -11,27 +11,30 @@ import Data.String ( fromString )
 import Data.ByteString ( ByteString )
 import qualified Data.ByteString as BS ( null, append )
 import Data.ByteString.UTF8 ( toString )
+import Data.ByteString.Char8 ( readInt )
 import Data.ByteString.Lazy ( toStrict )
 import Data.ByteString.Builder ( byteString )
 import Random
-import Data.Time.LocalTime ( TimeOfDay(..) )
+import Data.Time.LocalTime ( TimeOfDay(..), LocalTime(..) )
 import qualified Data.Text as T ( replace, Text(..), pack, unpack, append, intercalate )
 import qualified Data.Text.IO as T ( readFile )
 import Data.Aeson ( Value(..), encode )
 import Data.Either ( rights )
+import Data.Maybe ( isNothing, fromJust )
 
 type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
 type SqlCategoriesList = [(Int, ByteString)]
 
 data FilteringParameters = FilteringParameters {
-    created_at :: ByteString,
-    created_until :: ByteString,
-    created_since :: ByteString,
+    created_at :: Maybe LocalTime,
+    created_until :: Maybe LocalTime,
+    created_since :: Maybe LocalTime,
     author :: ByteString,
     category_id :: Int,
     name_contains :: ByteString,
-    text_contains :: ByteString
+    text_contains :: ByteString,
+    search :: ByteString
 }
 
 data PaginationParameters = PaginationParameters {
@@ -43,17 +46,18 @@ data SortingParameters = SortingParameters {
     sort_by :: SortingField
 }
 
-data SortingField = SortByData | SortByAuthor | SortByCategory | SortByPicturesQuantity | SortByNothing deriving Eq
+data SortingField = SortByDate | SortByAuthor | SortByCategory | SortByPicturesQuantity | SortById deriving Eq
 
 instance ToRow FilteringParameters where
     toRow fp = []
-        ++ (if BS.null p1 then [] else [toField p1])
-        ++ (if BS.null p2 then [] else [toField p2])
-        ++ (if BS.null p3 then [] else [toField p3])
-        ++ (if BS.null p4 then [] else [toField p4])
+        ++ (if isNothing p1 then [] else [toField p1])
+        ++ (if isNothing p2 then [] else [toField p2])
+        ++ (if isNothing p3 then [] else [toField p3])
+        ++ (if BS.null p4 then [] else [toField p4] ++ [toField p4]) -- two same wildcards
         ++ (if p5 == 0 then [] else [toField p5])
-        ++ (if BS.null p6 then [] else [toField $ "%" `BS.append` p6 `BS.append` "%"])
-        ++ (if BS.null p7 then [] else [toField $ "%" `BS.append` p7 `BS.append` "%"]) where
+        ++ (if BS.null p6 then [] else [toField $ ilike p6])
+        ++ (if BS.null p7 then [] else [toField $ ilike p7])
+        ++ (if BS.null p8 then [] else [toField $ ilike p8] ++ [toField $ ilike p8] ++ [toField $ ilike p8] ++ [toField $ ilike p8]) where
             p1 = created_at fp
             p2 = created_until fp
             p3 = created_since fp
@@ -61,25 +65,25 @@ instance ToRow FilteringParameters where
             p5 = category_id fp
             p6 = name_contains fp
             p7 = text_contains fp
+            p8 = search fp
+            ilike x = "%" `BS.append` x `BS.append` "%"
 
 instance ToRow PaginationParameters where
-    toRow pp = []
-        ++ (if p1 == 0 then [] else [toField p1])
-        ++ (if p2 == 0 then [] else [toField p2]) where
-            p1 = limit pp
+    toRow pp = toField p1 : toField p2 : [] where
+            p1 = if limit pp > 50 || limit pp < 1 then 50 else limit pp
             p2 = from pp
 
 instance ToRow SortingParameters where
     toRow sp = []
-        ++ if p1 == SortByNothing then [] else [toField p1] where
+        ++ if p1 == SortById then [] else [toField p1] where
             p1 = sort_by sp
 
 instance ToField SortingField where
-    toField SortByData = Plain ( byteString "create_date")
+    toField SortByDate = Plain ( byteString "create_date")
     toField SortByAuthor = Plain ( byteString "author" )
     toField SortByCategory = Plain ( byteString "category" )
-    toField SortByPicturesQuantity = Plain ( byteString "author" ) -- temporary
-    toField SortByNothing = Plain ( byteString "id" ) -- default
+    toField SortByPicturesQuantity = Plain ( byteString "(SELECT count(*) FROM news_pictures WHERE news_id = news.id)" )
+    toField SortById = Plain ( byteString "id" ) -- default
 
 check_news_db_existense :: IO Bool
 check_news_db_existense = do
@@ -489,37 +493,32 @@ getPostsList :: FilteringParameters -> SortingParameters -> PaginationParameters
 getPostsList fp sp pp = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text_base <- readFile "src\\SQL\\posts\\getPostsList.sql"
+    template_1 <- readFile "src\\SQL\\posts\\getPostsList_1.sql"
+    template_2 <- readFile "src\\SQL\\posts\\getPostsList_2.sql"
     
     let query_text =
-            query_text_base
+            template_1
+            -- sorting parameters
+            -- ++ (if sort_by sp == SortByNothing then "" else " ORDER BY ?")
+            -- pagination parameters
+            -- ++ (if from pp == 0 then "" else " OFFSET ?")
+            -- ++ (if limit pp == 0 then "" else " FETCH ?")
             -- filtering parameters
-            ++ (if BS.null $ created_at fp  then "" else " AND create_date = ?")
-            ++ (if BS.null $ created_until fp then "" else " AND create_date <= ?")
-            ++ (if BS.null $ created_since fp then "" else " AND create_date >= ?")
-            ++ (if BS.null $ author fp then "" else " AND author = ?")
+            ++ (if isNothing $ created_at fp then "" else " AND create_date = ?")
+            ++ (if isNothing $ created_until fp then "" else " AND create_date <= ?")
+            ++ (if isNothing $ created_since fp then "" else " AND create_date >= ?")
+            ++ (if BS.null $ author fp then "" else " AND (subquery1.firstname = ? OR subquery1.lastname = ?)")
             ++ (if category_id fp == 0 then "" else " AND category = ?")
             ++ (if BS.null $ name_contains fp then "" else " AND short_name ILIKE ?")
             ++ (if BS.null $ text_contains fp then "" else " AND text ILIKE ?")
-            -- sorting parameters)
-            ++ (if sort_by sp == SortByNothing then "" else " ORDER BY ?")
-            -- pagination parameters)
-            ++ (if from pp == 0 then "" else " OFFSET ?")
-            ++ (if limit pp == 0 then "" else " FETCH ?")
-    putStrLn query_text
-    putStrLn . show $ text_contains fp
-    putStrLn . show . toRow $ fp
+            ++ (if BS.null $ search fp then "" else " AND (subquery1.firstname ILIKE ? OR subquery1.lastname = ? OR short_name ILIKE ? OR text ILIKE ?)")
+            ++ template_2
+
     res <- query conn (fromString query_text) (toRow fp ++ toRow sp ++ toRow pp) :: IO [[Value]]
-    putStrLn . show . length $ res
     let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
-    putStrLn . show $ json
 
     close conn
-    return "tmp"
-
---addBytestringFilterToQuery :: Query -> FilteringParameters -> ( FilteringParameters -> ByteString ) String -> Query
---addBytestringFilterToQuery q fp f t = 
---    if f fp == "" then q else fromString ( show q ++ t)
+    return json 
 
 testQ :: IO ()
 testQ = do
@@ -561,48 +560,74 @@ addCategory name parent_id = do
     close conn
     return "Category added"
 
-getCategoriesListOld :: Int -> Int -> IO SqlCategoriesList
-getCategoriesListOld from limit = do
+getCategoriesList :: PaginationParameters -> IO ByteString
+getCategoriesList pp = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query_ conn ( fromString $
-        "SELECT id, name FROM public.categories ORDER BY id"
-        ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") 
-        ++ ("OFFSET " ++ (show from)) ) :: IO SqlCategoriesList
-    close conn
-    return result
+    query_text <- readFile "src\\SQL\\categories\\getCategoriesList.sql"
 
-getCategoriesList :: IO ByteString
-getCategoriesList = do
-    (host, user, pass, database) <- confGetPostgresqlConfiguration
-    conn <- connect ( ConnectInfo host 5432 user pass database )
-
-    -- get a maximum nested level of categories
-    query_text_max_lvl <- readFile "src\\SQL\\categories\\max_lvl.sql"
-    res_max_lvl <- query_ conn (fromString query_text_max_lvl) :: IO [[Int]]
-    let max_lvl = if length res_max_lvl == 0 then 0 else head . head $ res_max_lvl :: Int
-
-    h <- T.readFile "src\\SQL\\categories\\head.sql"
-    t <- T.readFile "src\\SQL\\categories\\tails.sql"
-    e <- T.readFile "src\\SQL\\categories\\end.sql"
-    
-    -- prepare query_text
-    let query_text = T.unpack $ categoriesQueryText h t e max_lvl
-    putStrLn query_text
-    res <- query_ conn ( fromString query_text ) :: IO [[Value]]
+    res <- query conn ( fromString query_text) (toRow pp) :: IO [[Value]]
     let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
 
     close conn
-
     return json
 
--- builds query text from head and tail. 
-categoriesQueryText :: T.Text -> T.Text -> T.Text -> Int -> T.Text -- head, tail, end, max_lvl
-categoriesQueryText h t e m = T.append hd $ T.append tails e where
-    hd = T.replace "?" (T.pack . show $ m) h :: T.Text
-    tails = T.intercalate ", " . reverse . zipWith placeLevel [0..(m-1)] $ repeat t :: T.Text
-    placeLevel l txt = (T.replace "?2" ( intToText $ l+1) $ T.replace "?1" ( intToText l) txt) :: T.Text
-    intToText = T.pack . show
+--getCategoriesListOld :: IO ByteString
+--getCategoriesListOld = do
+--    (host, user, pass, database) <- confGetPostgresqlConfiguration
+--    conn <- connect ( ConnectInfo host 5432 user pass database )
+--
+--    -- get a maximum nested level of categories
+--    query_text_max_lvl <- readFile "src\\SQL\\categories\\max_lvl.sql"
+--    res_max_lvl <- query_ conn (fromString query_text_max_lvl) :: IO [[Int]]
+--    let max_lvl = if length res_max_lvl == 0 then 0 else head . head $ res_max_lvl :: Int
+--
+--    h <- T.readFile "src\\SQL\\categories\\head.sql"
+--    t <- T.readFile "src\\SQL\\categories\\tails.sql"
+--    e <- T.readFile "src\\SQL\\categories\\end.sql"
+--    
+--    -- prepare query_text
+--    let query_text = T.unpack $ categoriesQueryText h t e max_lvl
+--    putStrLn query_text
+--    res <- query_ conn ( fromString query_text ) :: IO [[Value]]
+--    let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
+--
+--    close conn
+--
+--    return json
+--
+---- builds query text from head and tail. 
+--categoriesQueryText :: T.Text -> T.Text -> T.Text -> Int -> T.Text -- head, tail, end, max_lvl
+--categoriesQueryText h t e m = T.append hd $ T.append tails e where
+--    hd = T.replace "?" (T.pack . show $ m) h :: T.Text
+--    tails = T.intercalate ", " . reverse . zipWith placeLevel [0..(m-1)] $ repeat t :: T.Text
+--    placeLevel l txt = (T.replace "?2" ( intToText $ l+1) $ T.replace "?1" ( intToText l) txt) :: T.Text
+--    intToText = T.pack . show
+
+updateCategory :: Int -> Maybe ByteString -> Maybe ByteString -> IO ByteString
+updateCategory id name parent_id = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    let query_text = "UPDATE category SET"
+            ++ (if isNothing name then "" else " name = ?")
+            ++ (if isNothing parent_id then "" else " , pid = ?")
+            ++ (" WHERE id = ?")
+    putStrLn query_text
+    let parameters = [] ++ (if isNothing name then [] else toRow . Only . fromJust $ name) ++ (if isNothing parent_id then [] else toRow . Only . fst . fromJust . readInt . fromJust $ parent_id) ++ (toRow . Only $ id)
+    execute conn (fromString query_text) parameters
+    close conn
+    return "Category updated"
+
+categoryIdExists :: Int -> IO (Either String ())
+categoryIdExists id = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    res <- query conn "SELECT id FROM categories WHERE id = ?" [id] :: IO [[Int]]
+    close conn
+    return $ case res of
+        [] -> Left "Category with that id don't exist"
+        _ -> Right ()
+
 
 -- TAGS
 
@@ -694,6 +719,19 @@ checkAdminRights token = do
     close conn
     return $ length res /= 0
 
+checkAdminRightsNew :: ByteString -> IO (Either String ())
+checkAdminRightsNew token = do
+    -- read parameters from config
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+
+    -- open connection
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    -- query for checking admin rights
+    res <- query conn "SELECT tokens.user_id FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
+    close conn
+    return $ if (length res /= 0) then Right () else Left "You have no admin rights"
+
 -- OTHER
 
 totalNumberOfRowsInTable :: String -> IO Int
@@ -701,6 +739,25 @@ totalNumberOfRowsInTable table = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     query_res <- query_ conn . fromString $ "SELECT count(*) FROM " ++ table ++ ";" :: IO [[Int]]
+    let res = head . head $ query_res
+    close conn
+    return res
+
+totalNumberOfPosts :: FilteringParameters -> IO Int
+totalNumberOfPosts fp = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    template <- readFile "src\\SQL\\posts\\totalNumberOfPosts.sql"
+    let query_text = template
+            ++ (if isNothing $ created_at fp then "" else " AND create_date = ?")
+            ++ (if isNothing $ created_until fp then "" else " AND create_date <= ?")
+            ++ (if isNothing $ created_since fp then "" else " AND create_date >= ?")
+            ++ (if BS.null $ author fp then "" else " AND (subquery1.firstname ILIKE ? OR subquery1.lastname ILIKE ?)")
+            ++ (if category_id fp == 0 then "" else " AND category = ?")
+            ++ (if BS.null $ name_contains fp then "" else " AND short_name ILIKE ?")
+            ++ (if BS.null $ text_contains fp then "" else " AND text ILIKE ?") 
+            ++ (if BS.null $ search fp then "" else " AND (subquery1.firstname ILIKE ? OR subquery1.lastname = ? OR short_name ILIKE ? OR text ILIKE ?)")
+    query_res <- query conn (fromString query_text) (toRow fp) :: IO [[Int]]
     let res = head . head $ query_res
     close conn
     return res

@@ -15,15 +15,20 @@ import Control.Monad ( when )
 import System.Environment ( getArgs )
 --import SQL.Handle
 import SQL
-import Data.ByteString ( ByteString )
+import Data.ByteString ( ByteString, unpack )
 import qualified Data.ByteString as BS (writeFile)
 import Data.ByteString.Lazy ( fromStrict, toStrict )
 import Data.ByteString.UTF8 ( toString )
 import Data.ByteString.Char8 ( readInt )
-import Data.Maybe ( fromMaybe )
+import Data.Maybe ( fromMaybe, isNothing, fromJust )
 import Control.Monad ( join )
 import Data.String ( fromString )
 import Network.Wai.Parse ( parseRequestBody, lbsBackEnd, FileInfo(..) )
+import Database.PostgreSQL.Simple.Time ( parseLocalTime )
+import Data.Char ( toLower )
+
+defaultLimit = 50
+defaultFrom = 0
 
 -- AUTH
 
@@ -49,20 +54,23 @@ processAuthRequest request = do
 processListUsersRequest :: Request -> IO ByteString
 processListUsersRequest request = do
     -- get token from request
-    let token = fromMaybe "" . join $ lookup "token" $ queryString request
-    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
-    let limit = fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
-    
+    --let token = fromMaybe "" . join $ lookup "token" $ queryString request
+    let from = fst . fromMaybe (defaultFrom, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let limit = fst . fromMaybe (defaultLimit, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+
     -- check credentials for admin rights
-    credentials_correct <- checkAdminRights token
+    --credentials_correct <- checkAdminRights token
 
     -- in case of credential correctness return user list; otherwise return error message
-    case credentials_correct of
-        True -> do
-            res <- getUsersList from limit
-            total <- totalNumberOfRowsInTable "users"
-            return $ resultUsersList res (total, limit, from) token
-        _ -> return $ resultRequest "error" "You have no admin rights to watch users list"
+    -- case credentials_correct of
+        -- True -> do
+            -- res <- getUsersList from limit
+            -- total <- totalNumberOfRowsInTable "users"
+            -- return $ resultUsersList res (total, limit, from) token
+        -- _ -> return $ resultRequest "error" "You have no admin rights to watch users list"
+    res <- getUsersList from limit
+    total <- totalNumberOfRowsInTable "users"
+    return $ resultUsersList res (total, limit, from)
 
 processAddUsersRequest :: Request -> IO ByteString
 processAddUsersRequest request = do
@@ -166,21 +174,72 @@ processAddCategoryRequest request = do
     -- get params from request
     let name = fromMaybe "" . join $ lookup "name" $ queryString request
     let parent_id = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "parent_id" $ queryString request :: Int
+    let token = fromMaybe "" . join $ lookup "token" $ queryString request
 
-    addCategory name parent_id
-    return $ resultRequest "ok" ""
+    -- check credentials for admin rights
+    credentials_correct <- checkAdminRights token
+
+    case credentials_correct of
+        True -> do
+            addCategory name parent_id
+            return $ resultRequest "ok" ""
+        _ -> return $ resultRequest "error" "You have no admin rights"
 
 -- list
 processListCategoriesRequest :: Request -> IO ByteString
 processListCategoriesRequest request = do
     -- get params from request
-    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
-    let limit = fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let from = fst . fromMaybe (defaultFrom, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
+    let limit = fst . fromMaybe (defaultLimit, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
 
-    res <- getCategoriesList
-    --total <- totalNumberOfRowsInTable "categories"
-    --return $ resultCategoriesList res (total, limit, from)
-    return res
+    let pp = PaginationParameters limit from
+    res <- getCategoriesList pp
+    total <- totalNumberOfRowsInTable "categories"
+
+    return $ resultCategoriesList res (total, limit, from)
+
+-- update
+processUpdateCategoryRequest :: Request -> IO ByteString
+processUpdateCategoryRequest request = do
+    -- get params from request
+    let query = queryString request
+    let getParam p = case lookup p $ query of
+            Just x -> x
+            _ -> Nothing
+
+    let id = getParam "id"
+    let name = getParam "name"
+    let parent_id = getParam "parent_id"
+    let token = getParam "token"
+
+    -- check credentials for admin rights
+    credentials_correct <- case token of
+        Nothing -> return $ Left "You have no admin rights"
+        Just x -> checkAdminRightsNew x
+    -- check parameters correctness
+    let check_all_parameters_nothing = if all isNothing [name, parent_id] then Left "All parameters empty" else Right ()
+    let check_id_int = case id of
+            Nothing -> Left "id must be set"
+            Just x -> case readInt x of
+                Nothing -> Left "id incorrect"
+                _ -> Right ()
+
+    let check_pid_int_or_empty = case parent_id of
+            Nothing -> Right ()
+            Just x -> case readInt x of
+                Nothing -> Left "parent_id incorrect"
+                _ -> Right ()
+
+    check_category_id_exists <- categoryIdExists (fst . fromJust . readInt . fromJust $ id)
+
+    let check = (\_ -> credentials_correct) () >>= (\_ -> check_all_parameters_nothing) >>= (\_ -> check_id_int) >>= (\_ -> check_category_id_exists) >>= (\_ -> check_pid_int_or_empty)
+
+    case check of
+        Left x -> return $ resultRequest "error" x
+        _ -> do
+            res <- updateCategory (fst . fromJust . readInt . fromJust $ id) name parent_id
+            return $ resultRequest "ok" (toString res) 
+
 
 -- POSTS
 
@@ -339,22 +398,40 @@ processListPostsRequest request = do
     -- get params from request
 
     -- filters
-    let createdAt = fromMaybe "" . join $ lookup "created_at" $ queryString request
-    let createdUntil = fromMaybe "" . join $ lookup "created_until" $ queryString request
-    let createdSince = fromMaybe "" . join $ lookup "created_since" $ queryString request
+    let createdAt = case parseLocalTime . fromMaybe "" . join $ lookup "created_at" $ queryString request of 
+            Right x -> Just x
+            _ -> Nothing
+    let createdUntil = case parseLocalTime . fromMaybe "" . join $ lookup "created_until" $ queryString request of
+            Right x -> Just x
+            _ -> Nothing
+    let createdSince = case parseLocalTime . fromMaybe "" . join $ lookup "created_since" $ queryString request of
+            Right x -> Just x
+            _ -> Nothing
     let author = fromMaybe "" . join $ lookup "author" $ queryString request
     let categoryID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "category_id" $ queryString request :: Int
     let nameContains = fromMaybe "" . join $ lookup "name_contains" $ queryString request
     let textContains = fromMaybe "" . join $ lookup "text_contains" $ queryString request
+    let search = fromMaybe "" . join $ lookup "search" $ queryString request
 
     -- sorting
-    let sortBy = fromMaybe "" . join $ lookup "sortBy" $ queryString request
+    let sortBy = case fromMaybe "" . join $ lookup "sort_by" $ queryString request of
+            "date" -> SortByDate
+            "author" -> SortByAuthor
+            "category" -> SortByCategory
+            "pictures_quantity" -> SortByPicturesQuantity
+            _ -> SortById
 
     -- pagination
-    let limit = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
-    let from = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
+    let limit = fst . fromMaybe (defaultLimit, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let from = fst . fromMaybe (defaultFrom, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
 
-    getPostsList (FilteringParameters createdAt createdUntil createdSince author categoryID nameContains textContains) (SortingParameters SortByNothing) (PaginationParameters limit from)
+    let fp = FilteringParameters createdAt createdUntil createdSince author categoryID nameContains textContains search
+    let sp = SortingParameters sortBy
+    let pp = PaginationParameters limit from
+
+    res <- getPostsList fp sp pp
+    total <- totalNumberOfPosts fp
+    return $ resultPostsList res (total, limit, from)
 
 
 -- TAGS
