@@ -79,6 +79,14 @@ set splitbelow splitright
 wincmd _ | wincmd |
 vsplit
 1wincmd h
+wincmd _ | wincmd |
+split
+1wincmd k
+wincmd w
+wincmd w
+wincmd _ | wincmd |
+split
+1wincmd k
 wincmd w
 set nosplitbelow
 set nosplitright
@@ -87,8 +95,14 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 105 + 104) / 209)
-exe 'vert 2resize ' . ((&columns * 103 + 104) / 209)
+exe '1resize ' . ((&lines * 17 + 24) / 48)
+exe 'vert 1resize ' . ((&columns * 88 + 104) / 209)
+exe '2resize ' . ((&lines * 28 + 24) / 48)
+exe 'vert 2resize ' . ((&columns * 88 + 104) / 209)
+exe '3resize ' . ((&lines * 44 + 24) / 48)
+exe 'vert 3resize ' . ((&columns * 120 + 104) / 209)
+exe '4resize ' . ((&lines * 1 + 24) / 48)
+exe 'vert 4resize ' . ((&columns * 120 + 104) / 209)
 argglobal
 setlocal keymap=
 setlocal noarabic
@@ -214,11 +228,11 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 92 - ((36 * winheight(0) + 23) / 46)
+let s:l = 21 - ((9 * winheight(0) + 8) / 17)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-92
+21
 normal! 0
 wincmd w
 argglobal
@@ -347,27 +361,299 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 727 - ((43 * winheight(0) + 23) / 46)
+let s:l = 622 - ((14 * winheight(0) + 14) / 28)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-727
-normal! 05|
+622
+normal! 027|
+wincmd w
+argglobal
+if bufexists("src\RequestProcessors.hs") | buffer src\RequestProcessors.hs | else | edit src\RequestProcessors.hs | endif
+setlocal keymap=
+setlocal noarabic
+setlocal autoindent
+setlocal backupcopy=
+setlocal balloonexpr=
+setlocal nobinary
+setlocal nobreakindent
+setlocal breakindentopt=
+setlocal bufhidden=
+setlocal buflisted
+setlocal buftype=
+setlocal nocindent
+setlocal cinkeys=0{,0},0),0],:,0#,!^F,o,O,e
+setlocal cinoptions=
+setlocal cinwords=if,else,while,do,for,switch
+setlocal colorcolumn=
+setlocal comments=s1fl:{-,mb:\ \ ,ex:-},:--
+setlocal commentstring=--\ %s
+setlocal complete=.,w,b,u,t,i
+setlocal concealcursor=
+setlocal conceallevel=0
+setlocal completefunc=
+setlocal completeslash=
+setlocal nocopyindent
+setlocal cryptmethod=
+setlocal nocursorbind
+setlocal nocursorcolumn
+setlocal nocursorline
+setlocal cursorlineopt=both
+setlocal define=
+setlocal dictionary=
+setlocal nodiff
+setlocal equalprg=
+setlocal errorformat=
+setlocal expandtab
+if &filetype != 'haskell'
+setlocal filetype=haskell
+endif
+setlocal fixendofline
+setlocal foldcolumn=0
+setlocal foldenable
+setlocal foldexpr=0
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldmarker={{{,}}}
+setlocal foldmethod=manual
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldtext=foldtext()
+setlocal formatexpr=
+setlocal formatoptions=croql
+setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
+setlocal formatprg=
+setlocal grepprg=
+setlocal iminsert=0
+setlocal imsearch=-1
+setlocal include=
+setlocal includeexpr=
+setlocal indentexpr=GetHaskellIndent()
+setlocal indentkeys=!^F,o,O,0{,0},0(,0),0[,0],0,,0=where,0=let,0=deriving,0=in\ ,0=::\ ,0=->\ ,0==>\ ,0=|\ ,==\ 
+setlocal noinfercase
+setlocal iskeyword=@,48-57,_,128-167,224-235,'
+setlocal keywordprg=
+setlocal nolinebreak
+setlocal nolisp
+setlocal lispwords=
+setlocal nolist
+setlocal makeencoding=
+setlocal makeprg=
+setlocal matchpairs=(:),{:},[:]
+setlocal modeline
+setlocal modifiable
+setlocal nrformats=bin,octal,hex
+set number
+setlocal number
+setlocal numberwidth=4
+setlocal omnifunc=haskellcomplete#Complete
+setlocal path=
+setlocal nopreserveindent
+setlocal nopreviewwindow
+setlocal quoteescape=\\
+setlocal noreadonly
+setlocal norelativenumber
+setlocal norightleft
+setlocal rightleftcmd=search
+setlocal noscrollbind
+setlocal scrolloff=-1
+setlocal shiftwidth=8
+setlocal noshortname
+setlocal showbreak=
+setlocal sidescrolloff=-1
+setlocal signcolumn=auto
+setlocal nosmartindent
+setlocal softtabstop=0
+setlocal nospell
+setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
+setlocal spellfile=
+setlocal spelllang=en
+setlocal statusline=
+setlocal suffixesadd=
+setlocal swapfile
+setlocal synmaxcol=3000
+if &syntax != 'haskell'
+setlocal syntax=haskell
+endif
+setlocal tabstop=4
+setlocal tagcase=
+setlocal tagfunc=
+setlocal tags=
+setlocal termwinkey=
+setlocal termwinscroll=10000
+setlocal termwinsize=
+setlocal textwidth=0
+setlocal thesaurus=
+setlocal noundofile
+setlocal undolevels=-123456
+setlocal varsofttabstop=
+setlocal vartabstop=
+setlocal wincolor=
+setlocal nowinfixheight
+setlocal nowinfixwidth
+setlocal wrap
+setlocal wrapmargin=0
+silent! normal! zE
+let s:l = 239 - ((36 * winheight(0) + 22) / 44)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+239
+normal! 010|
+wincmd w
+argglobal
+if bufexists("src\RequestProcessors.hs") | buffer src\RequestProcessors.hs | else | edit src\RequestProcessors.hs | endif
+setlocal keymap=
+setlocal noarabic
+setlocal autoindent
+setlocal backupcopy=
+setlocal balloonexpr=
+setlocal nobinary
+setlocal nobreakindent
+setlocal breakindentopt=
+setlocal bufhidden=
+setlocal buflisted
+setlocal buftype=
+setlocal nocindent
+setlocal cinkeys=0{,0},0),0],:,0#,!^F,o,O,e
+setlocal cinoptions=
+setlocal cinwords=if,else,while,do,for,switch
+setlocal colorcolumn=
+setlocal comments=s1fl:{-,mb:\ \ ,ex:-},:--
+setlocal commentstring=--\ %s
+setlocal complete=.,w,b,u,t,i
+setlocal concealcursor=
+setlocal conceallevel=0
+setlocal completefunc=
+setlocal completeslash=
+setlocal nocopyindent
+setlocal cryptmethod=
+setlocal nocursorbind
+setlocal nocursorcolumn
+setlocal nocursorline
+setlocal cursorlineopt=both
+setlocal define=
+setlocal dictionary=
+setlocal nodiff
+setlocal equalprg=
+setlocal errorformat=
+setlocal expandtab
+if &filetype != 'haskell'
+setlocal filetype=haskell
+endif
+setlocal fixendofline
+setlocal foldcolumn=0
+setlocal foldenable
+setlocal foldexpr=0
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldmarker={{{,}}}
+setlocal foldmethod=manual
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldtext=foldtext()
+setlocal formatexpr=
+setlocal formatoptions=croql
+setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
+setlocal formatprg=
+setlocal grepprg=
+setlocal iminsert=0
+setlocal imsearch=-1
+setlocal include=
+setlocal includeexpr=
+setlocal indentexpr=GetHaskellIndent()
+setlocal indentkeys=!^F,o,O,0{,0},0(,0),0[,0],0,,0=where,0=let,0=deriving,0=in\ ,0=::\ ,0=->\ ,0==>\ ,0=|\ ,==\ 
+setlocal noinfercase
+setlocal iskeyword=@,48-57,_,128-167,224-235,'
+setlocal keywordprg=
+setlocal nolinebreak
+setlocal nolisp
+setlocal lispwords=
+setlocal nolist
+setlocal makeencoding=
+setlocal makeprg=
+setlocal matchpairs=(:),{:},[:]
+setlocal modeline
+setlocal modifiable
+setlocal nrformats=bin,octal,hex
+set number
+setlocal number
+setlocal numberwidth=4
+setlocal omnifunc=haskellcomplete#Complete
+setlocal path=
+setlocal nopreserveindent
+setlocal nopreviewwindow
+setlocal quoteescape=\\
+setlocal noreadonly
+setlocal norelativenumber
+setlocal norightleft
+setlocal rightleftcmd=search
+setlocal noscrollbind
+setlocal scrolloff=-1
+setlocal shiftwidth=8
+setlocal noshortname
+setlocal showbreak=
+setlocal sidescrolloff=-1
+setlocal signcolumn=auto
+setlocal nosmartindent
+setlocal softtabstop=0
+setlocal nospell
+setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
+setlocal spellfile=
+setlocal spelllang=en
+setlocal statusline=
+setlocal suffixesadd=
+setlocal swapfile
+setlocal synmaxcol=3000
+if &syntax != 'haskell'
+setlocal syntax=haskell
+endif
+setlocal tabstop=4
+setlocal tagcase=
+setlocal tagfunc=
+setlocal tags=
+setlocal termwinkey=
+setlocal termwinscroll=10000
+setlocal termwinsize=
+setlocal textwidth=0
+setlocal thesaurus=
+setlocal noundofile
+setlocal undolevels=-123456
+setlocal varsofttabstop=
+setlocal vartabstop=
+setlocal wincolor=
+setlocal nowinfixheight
+setlocal nowinfixwidth
+setlocal wrap
+setlocal wrapmargin=0
+silent! normal! zE
+let s:l = 31 - ((0 * winheight(0) + 0) / 1)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+31
+normal! 015|
 wincmd w
 2wincmd w
-exe 'vert 1resize ' . ((&columns * 105 + 104) / 209)
-exe 'vert 2resize ' . ((&columns * 103 + 104) / 209)
+exe '1resize ' . ((&lines * 17 + 24) / 48)
+exe 'vert 1resize ' . ((&columns * 88 + 104) / 209)
+exe '2resize ' . ((&lines * 28 + 24) / 48)
+exe 'vert 2resize ' . ((&columns * 88 + 104) / 209)
+exe '3resize ' . ((&lines * 44 + 24) / 48)
+exe 'vert 3resize ' . ((&columns * 120 + 104) / 209)
+exe '4resize ' . ((&lines * 1 + 24) / 48)
+exe 'vert 4resize ' . ((&columns * 120 + 104) / 209)
 tabnext 1
-badd +724 src\SQL.hs
+badd +128 src\JSON.hs
+badd +571 src\SQL.hs
+badd +0 src\RequestProcessors.hs
 badd +17 src\SQL\posts\getPostsList.sql
-badd +375 src\RequestProcessors.hs
-badd +41 endpoints.txt
-badd +1 app\Main.hs
+badd +72 endpoints.txt
+badd +235 app\Main.hs
 badd +1 src\SQL\posts\removeTagFromPost.sql
 badd +1 src\SQL\posts\toDraft.sql
 badd +8 src\SQL\categories.sql
 badd +14 src\SQL\categories\lvls.sql
-badd +134 src\JSON.hs
 badd +1 src\SQL\categories\max_lvl.sql
 badd +8 src\SQL\categories\tails.sql
 badd +1 src\SQL\categories\end.sql
@@ -390,9 +676,11 @@ badd +1 src\SQL\migrations\v3\add_function_uri_picture.sql
 badd +1 src
 badd +2 src\SQL\posts\getPostsList_1.sql
 badd +1 src\
-badd +2 src\SQL\posts\getPostsList_2.sql
-badd +0 src\SQL\posts\totalNumberOfPosts.sql
+badd +1 src\SQL\posts\getPostsList_2.sql
+badd +1 src\SQL\posts\totalNumberOfPosts.sql
 badd +1 src\SQL\posts\
+badd +1 JSON.hs
+badd +2 src\SQL\categories\getCategoriesList.sql
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
 endif

@@ -6,6 +6,7 @@ import Database.PostgreSQL.Simple ( connect, ConnectInfo(..), query, query_, clo
 import Database.PostgreSQL.Simple.Time ( parseLocalTime )
 import Database.PostgreSQL.Simple.ToRow ( ToRow(..) )
 import Database.PostgreSQL.Simple.ToField ( ToField(..), toField, Action(..) )
+import qualified Database.PostgreSQL.Simple.Types as PG ( Null(..) )
 import qualified Data.Configurator as Cfg ( autoReload, autoConfig, Worth(..), require )
 import Data.String ( fromString )
 import Data.ByteString ( ByteString )
@@ -21,10 +22,13 @@ import qualified Data.Text.IO as T ( readFile )
 import Data.Aeson ( Value(..), encode )
 import Data.Either ( rights )
 import Data.Maybe ( isNothing, fromJust )
+import Data.List ( foldl', intersperse, intercalate )
 
 type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
 type SqlCategoriesList = [(Int, ByteString)]
+
+type Token = ByteString
 
 data FilteringParameters = FilteringParameters {
     created_at :: Maybe LocalTime,
@@ -44,9 +48,9 @@ data PaginationParameters = PaginationParameters {
 
 data SortingParameters = SortingParameters {
     sort_by :: SortingField
-}
+} deriving Show
 
-data SortingField = SortByDate | SortByAuthor | SortByCategory | SortByPicturesQuantity | SortById deriving Eq
+data SortingField = SortByDate | SortByAuthor | SortByCategory | SortByPicturesQuantity | SortById deriving (Eq, Show)
 
 instance ToRow FilteringParameters where
     toRow fp = []
@@ -75,7 +79,7 @@ instance ToRow PaginationParameters where
 
 instance ToRow SortingParameters where
     toRow sp = []
-        ++ if p1 == SortById then [] else [toField p1] where
+        ++ [toField p1] where
             p1 = sort_by sp
 
 instance ToField SortingField where
@@ -489,8 +493,8 @@ removePictureFromPost postID pictureID = do
     close conn
     return "Picture removed from post"
 
-getPostsList :: FilteringParameters -> SortingParameters -> PaginationParameters -> IO ByteString
-getPostsList fp sp pp = do
+getPostsList :: FilteringParameters -> SortingParameters -> PaginationParameters -> Token -> Bool -> IO ByteString
+getPostsList fp sp pp token showDraft = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     template_1 <- readFile "src\\SQL\\posts\\getPostsList_1.sql"
@@ -513,12 +517,37 @@ getPostsList fp sp pp = do
             ++ (if BS.null $ text_contains fp then "" else " AND text ILIKE ?")
             ++ (if BS.null $ search fp then "" else " AND (subquery1.firstname ILIKE ? OR subquery1.lastname = ? OR short_name ILIKE ? OR text ILIKE ?)")
             ++ template_2
-
-    res <- query conn (fromString query_text) (toRow fp ++ toRow sp ++ toRow pp) :: IO [[Value]]
+ 
+    putStrLn query_text
+    putStrLn . show $ sp
+    putStrLn . show $ [toField token] ++ toRow fp ++ toRow sp ++ toRow pp
+    res <- query conn (fromString query_text) ([toField token] ++ [toField showDraft] ++ toRow fp ++ toRow sp ++ toRow pp) :: IO [[Value]]
     let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
 
     close conn
     return json 
+
+updatePost :: Int -> [(String, ByteString)] -> IO ByteString
+updatePost id vals = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    let tmplt =  (++ " = ?")
+    let (pnames, pvals) = foldl' f ([],[]) vals where
+        f (ns, vs) (n, v) = case n of
+             "category" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
+             "main_picture" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
+             _ -> (tmplt n : ns, (toField v) : vs)
+
+    let set_text = intercalate ", " pnames
+    let pvals' = pvals ++ [toField id]
+
+    let query_text = "UPDATE news SET "
+            ++ set_text
+            ++ " WHERE id = ?"
+    execute conn (fromString query_text) (pvals')
+    close conn
+    return "Post updated"
 
 testQ :: IO ()
 testQ = do
@@ -547,6 +576,16 @@ getPicturesList from limit = do
         ++ ("OFFSET " ++ (show from)) ) :: IO SqlPicturesList
     close conn
     return result
+
+pictureIdExists :: Int -> IO (Either String ())
+pictureIdExists id = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    res <- query conn "SELECT id FROM pictures WHERE id = ?" [id] :: IO [[Int]]
+    close conn
+    return $ case res of
+        [] -> Left "Picture with that ID don't exist"
+        _ -> Right ()
 
 -- CATEGORIES
 
@@ -604,17 +643,27 @@ getCategoriesList pp = do
 --    placeLevel l txt = (T.replace "?2" ( intToText $ l+1) $ T.replace "?1" ( intToText l) txt) :: T.Text
 --    intToText = T.pack . show
 
-updateCategory :: Int -> Maybe ByteString -> Maybe ByteString -> IO ByteString
-updateCategory id name parent_id = do
+bytestringToInt :: ByteString -> Int
+bytestringToInt = fst . fromJust . readInt
+
+updateCategory :: Int -> [(String, ByteString)] -> IO ByteString
+updateCategory id vals = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    let query_text = "UPDATE category SET"
-            ++ (if isNothing name then "" else " name = ?")
-            ++ (if isNothing parent_id then "" else " , pid = ?")
-            ++ (" WHERE id = ?")
-    putStrLn query_text
-    let parameters = [] ++ (if isNothing name then [] else toRow . Only . fromJust $ name) ++ (if isNothing parent_id then [] else toRow . Only . fst . fromJust . readInt . fromJust $ parent_id) ++ (toRow . Only $ id)
-    execute conn (fromString query_text) parameters
+    
+    let tmplt =  (++ " = ?")
+    let (pnames, pvals) = foldl' f ([],[]) vals where
+        f (ns, vs) (n, v) = case n of
+             "pid" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
+             _ -> (tmplt n : ns, (toField v) : vs)
+
+    let set_text = intercalate ", " pnames
+    let pvals' = pvals ++ [toField id]
+
+    let query_text = "UPDATE categories SET "
+            ++ set_text
+            ++ " WHERE id = ?"
+    execute conn (fromString query_text) (pvals')
     close conn
     return "Category updated"
 
@@ -666,6 +715,14 @@ checkPostAndTokenAccordance postID token = do
     close conn
     return . not . null $ result
     
+checkPostAndTokenAccordanceNew :: Int -> ByteString -> IO (Either String ())
+checkPostAndTokenAccordanceNew postID token = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\postAndTokenAccordance.sql"
+    result <- query conn (fromString query_text) [postID] :: IO [[Int]]
+    close conn
+    return $ if null result then Left("You have no access") else Right()  
 
 generateToken :: ByteString -> IO ByteString
 generateToken login = do

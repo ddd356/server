@@ -30,6 +30,12 @@ import Data.Char ( toLower )
 defaultLimit = 50
 defaultFrom = 0
 
+getParam p query = case lookup p $ query of
+    Just x -> x
+    _ -> Nothing
+
+check_all_parameters_nothing ps =  if all isNothing ps then Left "All parameters empty" else Right ()
+
 -- AUTH
 
 processAuthRequest :: Request -> IO ByteString
@@ -203,43 +209,42 @@ processUpdateCategoryRequest :: Request -> IO ByteString
 processUpdateCategoryRequest request = do
     -- get params from request
     let query = queryString request
-    let getParam p = case lookup p $ query of
-            Just x -> x
-            _ -> Nothing
 
-    let id = getParam "id"
-    let name = getParam "name"
-    let parent_id = getParam "parent_id"
-    let token = getParam "token"
+    let id = getParam "id" query
+    let name = getParam "name" query
+    let pid = getParam "pid" query
+    let token = getParam "token" query
 
-    -- check credentials for admin rights
+    -- checks
     credentials_correct <- case token of
         Nothing -> return $ Left "You have no admin rights"
         Just x -> checkAdminRightsNew x
-    -- check parameters correctness
-    let check_all_parameters_nothing = if all isNothing [name, parent_id] then Left "All parameters empty" else Right ()
-    let check_id_int = case id of
-            Nothing -> Left "id must be set"
-            Just x -> case readInt x of
-                Nothing -> Left "id incorrect"
-                _ -> Right ()
 
-    let check_pid_int_or_empty = case parent_id of
+    check_id_int <- case id of
+            Nothing -> return $ Left "id must be set"
+            Just x -> case readInt x of
+                Nothing -> return $ Left "id incorrect"
+                _ -> categoryIdExists $ bytestringToInt . fromJust $ id
+
+    let check_pid_int_or_null_or_empty = case pid of
             Nothing -> Right ()
+            Just "null" -> Right ()
             Just x -> case readInt x of
-                Nothing -> Left "parent_id incorrect"
+                Nothing -> Left "pid incorrect"
                 _ -> Right ()
 
-    check_category_id_exists <- categoryIdExists (fst . fromJust . readInt . fromJust $ id)
 
-    let check = (\_ -> credentials_correct) () >>= (\_ -> check_all_parameters_nothing) >>= (\_ -> check_id_int) >>= (\_ -> check_category_id_exists) >>= (\_ -> check_pid_int_or_empty)
+    let check = (\_ -> credentials_correct) () >>= (\_ -> check_all_parameters_nothing [name, pid]) >>= (\_ -> check_id_int) >>= (\_ -> check_pid_int_or_null_or_empty)
+
+    let vals = []
+            ++ (if isNothing name then [] else [("name", fromJust name)])
+            ++ (if isNothing pid then [] else [("pid", fromJust pid)])
 
     case check of
         Left x -> return $ resultRequest "error" x
         _ -> do
-            res <- updateCategory (fst . fromJust . readInt . fromJust $ id) name parent_id
+            res <- updateCategory (bytestringToInt . fromJust $ id) vals
             return $ resultRequest "ok" (toString res) 
-
 
 -- POSTS
 
@@ -396,6 +401,14 @@ processRemovePictureFromPostRequest request = do
 processListPostsRequest :: Request -> IO ByteString
 processListPostsRequest request = do
     -- get params from request
+    
+    -- credentials
+    let token = fromMaybe "" . join $ lookup "token" $ queryString request
+
+    -- draft (special filter)
+    let showDraft = case fromMaybe "" . join $ lookup "draft" $ queryString request of
+            "true" -> True
+            _ -> False
 
     -- filters
     let createdAt = case parseLocalTime . fromMaybe "" . join $ lookup "created_at" $ queryString request of 
@@ -429,10 +442,59 @@ processListPostsRequest request = do
     let sp = SortingParameters sortBy
     let pp = PaginationParameters limit from
 
-    res <- getPostsList fp sp pp
+    putStrLn . show $ sp
+    res <- getPostsList fp sp pp token showDraft
     total <- totalNumberOfPosts fp
     return $ resultPostsList res (total, limit, from)
 
+processUpdatePostRequest :: Request -> IO ByteString
+processUpdatePostRequest request = do
+    -- get params from request
+    let query = queryString request
+
+    let id = getParam "id" query
+    let token = getParam "token" query
+    let shortName = getParam "shortname" query
+    let category = getParam "category" query
+    let text = getParam "text" query
+    let mainPicture = getParam "main_picture" query
+
+    -- checks
+    let check_id = case id of
+            Nothing -> Left "id must be set"
+            Just x -> case readInt x of
+                Nothing -> Left "id incorrect"
+                _ -> Right ()
+
+    check_category <- case category of
+            Nothing -> return $ Right ()
+            Just x -> case readInt x of
+                Nothing -> return $ Left "category incorrect"
+                _ -> categoryIdExists $ bytestringToInt . fromJust $ category
+
+    check_main_picture <- case mainPicture of
+            Nothing -> return $ Right ()
+            Just x -> case readInt x of
+                Nothing -> return $ Left "main_picture incorrect"
+                _ -> pictureIdExists $ bytestringToInt . fromJust $ mainPicture
+
+    credentials_correct <- case token of
+            Nothing -> return $ Left "You have no access"
+            Just x -> checkPostAndTokenAccordanceNew (bytestringToInt . fromJust $ id) x
+
+    let check = (\_ -> check_all_parameters_nothing [shortName, category, text, mainPicture]) () >>= (\_ -> check_id) >>= (\_ -> check_category) >>= (\_ -> check_main_picture) >>= (\_ -> credentials_correct)
+
+    let vals = []
+            ++ (if isNothing shortName then [] else [("short_name", fromJust shortName)])
+            ++ (if isNothing category then [] else [("category", fromJust category)])
+            ++ (if isNothing text then [] else [("text", fromJust text)])
+            ++ (if isNothing mainPicture then [] else [("main_picture", fromJust mainPicture)])
+
+    case check of
+        Left x -> return $ resultRequest "error" x
+        _ -> do
+            res <- updatePost (bytestringToInt . fromJust $ id) vals
+            return $ resultRequest "ok" (toString res)
 
 -- TAGS
 

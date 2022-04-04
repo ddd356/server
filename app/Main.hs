@@ -139,6 +139,14 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
+    | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "update" = do
+        putStrLn "Processing update post request"
+        response_text <- processUpdatePostRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
     -- AUTH
 
     -- auth
@@ -204,6 +212,15 @@ app request respond
     | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "list" = do
         putStrLn "Processing list pictures request"
         response_text <- processListPicturesRequest request
+        respond $ responseLBS
+            status200
+            [("Content-Type", "text/plain")]
+            (fromStrict response_text)
+
+    -- get one picture by id
+    | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "get_picture" = do
+        putStrLn "Processing list pictures request"
+        response_text <- processGetPictureRequest request
         respond $ responseLBS
             status200
             [("Content-Type", "text/plain")]
