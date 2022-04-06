@@ -3,15 +3,12 @@
 
 module JSON where
 
-import SQL ( SqlUsersList, SqlPicturesList, SqlCategoriesList )
-import Data.Aeson
+import SQL ( SqlUsersList, SqlPicturesList )
+import Data.Aeson ( Value(..), ToJSON(..), fieldLabelModifier, genericToJSON, defaultOptions, encode, decode )
 import Data.ByteString ( ByteString )
-import qualified Data.ByteString as BS ( append )
 import Data.ByteString.Lazy ( toStrict, fromStrict )
 import Data.ByteString.UTF8 ( toString )
-import Data.ByteString.Char8 ( readInt )
-import Data.String ( fromString )
-import GHC.Generics
+import GHC.Generics ( Generic )
 import Data.Maybe ( fromJust )
 
 type PaginationData = (Total, Limit, From)
@@ -110,7 +107,7 @@ instance ToJSON ResultPostsList where
 
 resultUsersList :: SqlUsersList -> PaginationData -> ByteString
 resultUsersList l (total, limit, from) = toStrict . encode $ rul where
-    users = map (\(id, firstname, lastname, login, avatar, create_date, admin, can_create_posts) -> User id firstname lastname login (toString avatar) (show create_date) admin can_create_posts) l
+    users = map (\(user_id, firstname, lastname, login, avatar, create_date, admin, can_create_posts) -> User user_id firstname lastname login (toString avatar) (show create_date) admin can_create_posts) l
     next = if total > from + limit then ( "/users?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
     prev = if from > 0 then ( "users?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
     rul = ResultUsersList limit next prev users
@@ -120,7 +117,7 @@ resultRequest res description = toStrict . encode $ RequestResult res descriptio
 
 resultPicturesList :: SqlPicturesList -> PaginationData -> ByteString
 resultPicturesList l (total, limit, from) = toStrict . encode $ rpl where
-    pictures = map (\ (id, picture) -> Picture id (toString picture)) l
+    pictures = map (\ (picture_id, picture) -> Picture picture_id (toString picture)) l
     next = if total > from + limit then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
     prev = if from > 0 then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
     rpl = ResultPicturesList limit next prev pictures

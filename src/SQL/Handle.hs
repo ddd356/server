@@ -17,11 +17,11 @@ data Config = Config
     , database :: String }
 
 config :: String -> Word16 -> String -> String -> String -> Config
-config host port user password database = Config host port user password database
+config h p u pwd db = Config h p u pwd db
 
 new :: Config -> IO Handle
-new config = do
-    conn <- connect ( ConnectInfo (host config) (port config) (user config) (password config) (database config) )
+new c = do
+    conn <- connect ( ConnectInfo (host c) (port c) (user c) (password c) (database c) )
     return $ Handle ( query_ conn ) ( execute_ conn )
 
 --close :: Handle -> IO ()

@@ -1,30 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Lib
-import JSON
 import Network.Wai
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
-import qualified Data.Configurator as Cfg ( autoReload, autoConfig, Worth(..), require )
-import qualified Data.Configurator.Types as Cfg ( AutoConfig(..) )
-import qualified Data.Text as T ( Text )
-import qualified Data.Text.IO as T ( putStrLn )
-import Control.Concurrent ( threadDelay )
 import System.Directory ( doesFileExist )
-import Control.Monad ( when )
+import Control.Monad ( when, join, unless )
 import System.Environment ( getArgs )
---import SQL.Handle
 import SQL
-import Data.ByteString ( ByteString )
-import qualified Data.ByteString as BS (writeFile)
-import Data.ByteString.Lazy ( fromStrict, toStrict )
-import Data.ByteString.UTF8 ( toString )
-import Data.ByteString.Char8 ( readInt )
+import Data.ByteString.Lazy ( fromStrict  )
 import Data.Maybe ( fromMaybe )
-import Control.Monad ( join )
-import Data.String ( fromString )
-import Network.Wai.Parse ( parseRequestBody, lbsBackEnd, FileInfo(..) )
 import RequestProcessors
 
 app :: Application
@@ -32,22 +17,22 @@ app request respond
 
     --TEST
 
-    | length (pathInfo request) == 1 && last (pathInfo request) == "test" = do
-        -- for testing purposes
-
-        ( params, files ) <- parseRequestBody lbsBackEnd request
-        let file = toStrict . fileContent . snd . head $ files
-        BS.writeFile "..\\..\\testfile1.png" file
-
-        --body_lazy <- strictRequestBody  request
-        --let body = toStrict body_lazy
-        -- body = requestBody request
-        --putStrLn $ "TEST: " ++ toString body
-        -- BS.writeFile "..\\..\\testfile1.png" body
-        respond $ responseLBS
-            status200
-            [("Content-Type", "text/plain")]
-            "Want to see a picture"
+--    | length (pathInfo request) == 1 && last (pathInfo request) == "test" = do
+--        -- for testing purposes
+--
+--        ( params, files ) <- parseRequestBody lbsBackEnd request
+--        let file = toStrict . fileContent . snd . head $ files
+--        BS.writeFile "..\\..\\testfile1.png" file
+--
+--        --body_lazy <- strictRequestBody  request
+--        --let body = toStrict body_lazy
+--        -- body = requestBody request
+--        --putStrLn $ "TEST: " ++ toString body
+--        -- BS.writeFile "..\\..\\testfile1.png" body
+--        respond $ responseLBS
+--            status200
+--            [("Content-Type", "text/plain")]
+--            "Want to see a picture"
     
     -- POSTS
 
@@ -272,12 +257,12 @@ app request respond
     | otherwise = do
         -- print info message to command line
         putStrLn "I've done some IO here"
-        putStrLn $ show (length $ pathInfo request)
-        putStrLn $ show (last $ pathInfo request)
-        putStrLn $ show (action)
-        putStrLn $ show $ length (pathInfo request) == 1
-        putStrLn $ show $ last (pathInfo request) == "pictures"
-        putStrLn $ show $ action == "list"
+        print (length $ pathInfo request)
+        print (last $ pathInfo request)
+        print action
+        print (length (pathInfo request) == 1)
+        print (last (pathInfo request) == "pictures")
+        print (action == "list")
         respond $ responseLBS
             status200
             [("Content-Type", "text/plain")]
@@ -292,25 +277,26 @@ main = do
     args <- getArgs
 
     -- create database, if argument -create-db exists
-    when ( elem "-create-db" args ) createNewsDb
+    when ( "-create-db" `elem` args ) createNewsDb
 
     -- update database, if argument -update-db exists
     when ( elem "-update-db" args ) updateNewsDb
 
     -- check conf.cfg existense; create if it is not
     exist_conf_cfg <- doesFileExist "conf.cfg"
-    when (not exist_conf_cfg) create_conf_cfg
+    unless exist_conf_cfg create_conf_cfg
     
     --  load configuration
-    (config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
+    --(config, threadID) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
     
     -- check news database existense
     news_db_exists <- check_news_db_existense
-    putStrLn $ "news_db_exists = " ++ (show news_db_exists)
+    putStrLn $ "news_db_exists = " ++ show news_db_exists
 
     -- run server, if all circumstanses are done
     when news_db_exists ( run 8080 app )
 
+create_conf_cfg :: IO ()
 create_conf_cfg = do
     -- write new conf file
     writeFile "conf.cfg" "import \"usr_config.cfg\""

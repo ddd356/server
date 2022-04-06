@@ -1,6 +1,6 @@
 module Random where
 
-import System.Random (getStdRandom, randomR, random, randomRs, newStdGen)
+import System.Random (getStdRandom, randomR)
 
 -- https://github.com/dmp1ce/haskell-examples/blob/master/random/random-examples.hs
 
@@ -12,6 +12,7 @@ selectRandomElement list = randomIntWithinRange >>=
   where
   randomIntWithinRange = getStdRandom $ randomR (0, length list - 1)
 
+randomLetterRange :: String
 randomLetterRange = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 -- Example of getting a random a-zA-Z 
@@ -29,7 +30,8 @@ getRandomString size = addRandomLettersToString "" size
       a <- getRandomLetter
       b <- addRandomLettersToString (s ++ a:[]) n
       return b
-  addRandomLetterToString :: String -> IO String
-  addRandomLetterToString s = do
-    a <- getRandomLetter
-    return (s ++ a:[])
+  addRandomLettersToString _ _  = return ""
+  --addRandomLetterToString :: String -> IO String
+  --addRandomLetterToString s = do
+  --  a <- getRandomLetter
+  --  return (s ++ a:[])
