@@ -34,6 +34,7 @@ dependencies:
 - time
 - wai-extra
 - aeson
+- pbkdf
 
 library:
   source-dirs: src

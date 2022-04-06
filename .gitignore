@@ -32,3 +32,4 @@ plan.txt
 tmp1
 Session.vim
 Session.vim
+*.lock

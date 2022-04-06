@@ -74,7 +74,7 @@ endif
 set shortmess=aoO
 argglobal
 %argdel
-edit src\JSON.hs
+edit src\SQL\auth\addNewToken.sql
 set splitbelow splitright
 wincmd _ | wincmd |
 vsplit
@@ -95,15 +95,196 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 17 + 24) / 48)
-exe 'vert 1resize ' . ((&columns * 88 + 104) / 209)
-exe '2resize ' . ((&lines * 28 + 24) / 48)
-exe 'vert 2resize ' . ((&columns * 88 + 104) / 209)
-exe '3resize ' . ((&lines * 44 + 24) / 48)
-exe 'vert 3resize ' . ((&columns * 120 + 104) / 209)
-exe '4resize ' . ((&lines * 1 + 24) / 48)
-exe 'vert 4resize ' . ((&columns * 120 + 104) / 209)
+exe '1resize ' . ((&lines * 23 + 24) / 48)
+exe 'vert 1resize ' . ((&columns * 87 + 104) / 209)
+exe '2resize ' . ((&lines * 22 + 24) / 48)
+exe 'vert 2resize ' . ((&columns * 87 + 104) / 209)
+exe '3resize ' . ((&lines * 23 + 24) / 48)
+exe 'vert 3resize ' . ((&columns * 121 + 104) / 209)
+exe '4resize ' . ((&lines * 22 + 24) / 48)
+exe 'vert 4resize ' . ((&columns * 121 + 104) / 209)
 argglobal
+let s:cpo_save=&cpo
+set cpo&vim
+inoremap <buffer> <C-C>R :call sqlcomplete#Map("resetCache")
+inoremap <buffer> <Left> =sqlcomplete#DrillOutOfColumns()
+inoremap <buffer> <Right> =sqlcomplete#DrillIntoTable()
+inoremap <buffer> <C-C>L :call sqlcomplete#Map("column_csv")
+inoremap <buffer> <C-C>l :call sqlcomplete#Map("column_csv")
+inoremap <buffer> <C-C>c :call sqlcomplete#Map("column")
+inoremap <buffer> <C-C>v :call sqlcomplete#Map("view")
+inoremap <buffer> <C-C>p :call sqlcomplete#Map("procedure")
+inoremap <buffer> <C-C>t :call sqlcomplete#Map("table")
+inoremap <buffer> <C-C>s :call sqlcomplete#Map("sqlStatement\\w*")
+inoremap <buffer> <C-C>T :call sqlcomplete#Map("sqlType\\w*")
+inoremap <buffer> <C-C>o :call sqlcomplete#Map("sqlOption\\w*")
+inoremap <buffer> <C-C>f :call sqlcomplete#Map("sqlFunction\\w*")
+inoremap <buffer> <C-C>k :call sqlcomplete#Map("sqlKeyword\\w*")
+inoremap <buffer> <C-C>a :call sqlcomplete#Map("syntax")
+xnoremap <buffer> <silent> [" :exec "normal! gv"|call search('\(^\s*\(--\|\/\/\|\*\|\/\*\|\*\/\).*\n\)\(^\s*\(--\|\/\/\|\*\|\/\*\|\*\/\)\)\@!', "W" )
+nnoremap <buffer> <silent> [" :call search('\(^\s*\(--\|\/\/\|\*\|\/\*\|\*\/\).*\n\)\(^\s*\(--\|\/\/\|\*\|\/\*\|\*\/\)\)\@!', "W" )
+xnoremap <buffer> <silent> [{ ?\c^\s*\(\(create\)\s\+\(or\s\+replace\s\+\)\{,1}\)\{,1}\<\(function\|procedure\|event\|\(existing\|global\s\+temporary\s\+\)\{,1}table\|trigger\|schema\|service\|publication\|database\|datatype\|domain\|index\|subscription\|synchronization\|view\|variable\)\>
+nnoremap <buffer> <silent> [{ :call search('\c^\s*\(\(create\)\s\+\(or\s\+replace\s\+\)\{,1}\)\{,1}\<\(function\|procedure\|event\|\(existing\|global\s\+temporary\s\+\)\{,1}table\|trigger\|schema\|service\|publication\|database\|datatype\|domain\|index\|subscription\|synchronization\|view\|variable\)\>', 'bW')
+xnoremap <buffer> <silent> [] :exec "normal! gv"|call search('\c^\s*end\W*$', 'bW' )
+xnoremap <buffer> <silent> [[ :exec "normal! gv"|call search('\c^\s*begin\>', 'bW' )
+nnoremap <buffer> <silent> [] :call search('\c^\s*end\W*$', 'bW' )
+nnoremap <buffer> <silent> [[ :call search('\c^\s*begin\>', 'bW' )
+xnoremap <buffer> <silent> ]" :exec "normal! gv"|call search('^\(\s*\(--\|\/\/\|\*\|\/\*\|\*\/\).*\n\)\@<!\(\s*\(--\|\/\/\|\*\|\/\*\|\*\/\)\)', "W" )
+nnoremap <buffer> <silent> ]" :call search('^\(\s*\(--\|\/\/\|\*\|\/\*\|\*\/\).*\n\)\@<!\(\s*\(--\|\/\/\|\*\|\/\*\|\*\/\)\)', "W" )
+xnoremap <buffer> <silent> ]} /\c^\s*\(\(create\)\s\+\(or\s\+replace\s\+\)\{,1}\)\{,1}\<\(function\|procedure\|event\|\(existing\|global\s\+temporary\s\+\)\{,1}table\|trigger\|schema\|service\|publication\|database\|datatype\|domain\|index\|subscription\|synchronization\|view\|variable\)\>
+nnoremap <buffer> <silent> ]} :call search('\c^\s*\(\(create\)\s\+\(or\s\+replace\s\+\)\{,1}\)\{,1}\<\(function\|procedure\|event\|\(existing\|global\s\+temporary\s\+\)\{,1}table\|trigger\|schema\|service\|publication\|database\|datatype\|domain\|index\|subscription\|synchronization\|view\|variable\)\>', 'W')
+xnoremap <buffer> <silent> ][ :exec "normal! gv"|call search('\c^\s*end\W*$', 'W' )
+xnoremap <buffer> <silent> ]] :exec "normal! gv"|call search('\c^\s*begin\>', 'W' )
+nnoremap <buffer> <silent> ][ :call search('\c^\s*end\W*$', 'W' )
+nnoremap <buffer> <silent> ]] :call search('\c^\s*begin\>', 'W' )
+inoremap <buffer> R :call sqlcomplete#Map("resetCache")
+inoremap <buffer> L :call sqlcomplete#Map("column_csv")
+inoremap <buffer> l :call sqlcomplete#Map("column_csv")
+inoremap <buffer> c :call sqlcomplete#Map("column")
+inoremap <buffer> v :call sqlcomplete#Map("view")
+inoremap <buffer> p :call sqlcomplete#Map("procedure")
+inoremap <buffer> t :call sqlcomplete#Map("table")
+inoremap <buffer> s :call sqlcomplete#Map("sqlStatement\\w*")
+inoremap <buffer> T :call sqlcomplete#Map("sqlType\\w*")
+inoremap <buffer> o :call sqlcomplete#Map("sqlOption\\w*")
+inoremap <buffer> f :call sqlcomplete#Map("sqlFunction\\w*")
+inoremap <buffer> k :call sqlcomplete#Map("sqlKeyword\\w*")
+inoremap <buffer> a :call sqlcomplete#Map("syntax")
+let &cpo=s:cpo_save
+unlet s:cpo_save
+setlocal keymap=
+setlocal noarabic
+setlocal autoindent
+setlocal backupcopy=
+setlocal balloonexpr=
+setlocal nobinary
+setlocal nobreakindent
+setlocal breakindentopt=
+setlocal bufhidden=
+setlocal buflisted
+setlocal buftype=
+setlocal nocindent
+setlocal cinkeys=0{,0},0),0],:,0#,!^F,o,O,e
+setlocal cinoptions=
+setlocal cinwords=if,else,while,do,for,switch
+setlocal colorcolumn=
+setlocal comments=s1:/*,mb:*,ex:*/,:--,://
+setlocal commentstring=/*%s*/
+setlocal complete=.,w,b,u,t,i
+setlocal concealcursor=
+setlocal conceallevel=0
+setlocal completefunc=
+setlocal completeslash=
+setlocal nocopyindent
+setlocal cryptmethod=
+setlocal nocursorbind
+setlocal nocursorcolumn
+setlocal nocursorline
+setlocal cursorlineopt=both
+setlocal define=\\c\\<\\(VARIABLE\\|DECLARE\\|IN\\|OUT\\|INOUT\\)\\>
+setlocal dictionary=
+setlocal nodiff
+setlocal equalprg=
+setlocal errorformat=
+setlocal expandtab
+if &filetype != 'sql'
+setlocal filetype=sql
+endif
+setlocal fixendofline
+setlocal foldcolumn=0
+setlocal foldenable
+setlocal foldexpr=0
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldmarker={{{,}}}
+setlocal foldmethod=manual
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal foldtext=foldtext()
+setlocal formatexpr=
+setlocal formatoptions=qc
+setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
+setlocal formatprg=
+setlocal grepprg=
+setlocal iminsert=0
+setlocal imsearch=-1
+setlocal include=
+setlocal includeexpr=
+setlocal indentexpr=GetSQLIndent()
+setlocal indentkeys=0),0],!^F,o,O,=~end,=~else,=~elseif,=~elsif,0=~when,0=)
+setlocal noinfercase
+setlocal iskeyword=@,48-57,_,128-167,224-235
+setlocal keywordprg=
+setlocal nolinebreak
+setlocal nolisp
+setlocal lispwords=
+setlocal nolist
+setlocal makeencoding=
+setlocal makeprg=
+setlocal matchpairs=(:),{:},[:],<:>
+setlocal modeline
+setlocal modifiable
+setlocal nrformats=bin,octal,hex
+set number
+setlocal number
+setlocal numberwidth=4
+setlocal omnifunc=sqlcomplete#Complete
+setlocal path=
+setlocal nopreserveindent
+setlocal nopreviewwindow
+setlocal quoteescape=\\
+setlocal noreadonly
+setlocal norelativenumber
+setlocal norightleft
+setlocal rightleftcmd=search
+setlocal noscrollbind
+setlocal scrolloff=-1
+setlocal shiftwidth=8
+setlocal noshortname
+setlocal showbreak=
+setlocal sidescrolloff=-1
+setlocal signcolumn=auto
+setlocal nosmartindent
+setlocal softtabstop=0
+setlocal nospell
+setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
+setlocal spellfile=
+setlocal spelllang=en
+setlocal statusline=
+setlocal suffixesadd=
+setlocal swapfile
+setlocal synmaxcol=3000
+if &syntax != 'sql'
+setlocal syntax=sql
+endif
+setlocal tabstop=4
+setlocal tagcase=
+setlocal tagfunc=
+setlocal tags=
+setlocal termwinkey=
+setlocal termwinscroll=10000
+setlocal termwinsize=
+setlocal textwidth=0
+setlocal thesaurus=
+setlocal noundofile
+setlocal undolevels=-123456
+setlocal varsofttabstop=
+setlocal vartabstop=
+setlocal wincolor=
+setlocal nowinfixheight
+setlocal nowinfixwidth
+setlocal wrap
+setlocal wrapmargin=0
+silent! normal! zE
+let s:l = 1 - ((0 * winheight(0) + 11) / 23)
+if s:l < 1 | let s:l = 1 | endif
+exe s:l
+normal! zt
+1
+normal! 0
+wincmd w
+argglobal
+if bufexists("app\Main.hs") | buffer app\Main.hs | else | edit app\Main.hs | endif
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
@@ -228,12 +409,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 21 - ((9 * winheight(0) + 8) / 17)
+let s:l = 61 - ((10 * winheight(0) + 11) / 22)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-21
-normal! 0
+61
+normal! 018|
 wincmd w
 argglobal
 if bufexists("src\SQL.hs") | buffer src\SQL.hs | else | edit src\SQL.hs | endif
@@ -361,12 +542,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 622 - ((14 * winheight(0) + 14) / 28)
+let s:l = 277 - ((7 * winheight(0) + 11) / 23)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-622
-normal! 027|
+277
+normal! 025|
 wincmd w
 argglobal
 if bufexists("src\RequestProcessors.hs") | buffer src\RequestProcessors.hs | else | edit src\RequestProcessors.hs | endif
@@ -444,7 +625,7 @@ setlocal modeline
 setlocal modifiable
 setlocal nrformats=bin,octal,hex
 set number
-setlocal number
+setlocal nonumber
 setlocal numberwidth=4
 setlocal omnifunc=haskellcomplete#Complete
 setlocal path=
@@ -494,162 +675,29 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 239 - ((36 * winheight(0) + 22) / 44)
+let s:l = 269 - ((2 * winheight(0) + 11) / 22)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-239
-normal! 010|
+269
+normal! 034|
 wincmd w
-argglobal
-if bufexists("src\RequestProcessors.hs") | buffer src\RequestProcessors.hs | else | edit src\RequestProcessors.hs | endif
-setlocal keymap=
-setlocal noarabic
-setlocal autoindent
-setlocal backupcopy=
-setlocal balloonexpr=
-setlocal nobinary
-setlocal nobreakindent
-setlocal breakindentopt=
-setlocal bufhidden=
-setlocal buflisted
-setlocal buftype=
-setlocal nocindent
-setlocal cinkeys=0{,0},0),0],:,0#,!^F,o,O,e
-setlocal cinoptions=
-setlocal cinwords=if,else,while,do,for,switch
-setlocal colorcolumn=
-setlocal comments=s1fl:{-,mb:\ \ ,ex:-},:--
-setlocal commentstring=--\ %s
-setlocal complete=.,w,b,u,t,i
-setlocal concealcursor=
-setlocal conceallevel=0
-setlocal completefunc=
-setlocal completeslash=
-setlocal nocopyindent
-setlocal cryptmethod=
-setlocal nocursorbind
-setlocal nocursorcolumn
-setlocal nocursorline
-setlocal cursorlineopt=both
-setlocal define=
-setlocal dictionary=
-setlocal nodiff
-setlocal equalprg=
-setlocal errorformat=
-setlocal expandtab
-if &filetype != 'haskell'
-setlocal filetype=haskell
-endif
-setlocal fixendofline
-setlocal foldcolumn=0
-setlocal foldenable
-setlocal foldexpr=0
-setlocal foldignore=#
-setlocal foldlevel=0
-setlocal foldmarker={{{,}}}
-setlocal foldmethod=manual
-setlocal foldminlines=1
-setlocal foldnestmax=20
-setlocal foldtext=foldtext()
-setlocal formatexpr=
-setlocal formatoptions=croql
-setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
-setlocal formatprg=
-setlocal grepprg=
-setlocal iminsert=0
-setlocal imsearch=-1
-setlocal include=
-setlocal includeexpr=
-setlocal indentexpr=GetHaskellIndent()
-setlocal indentkeys=!^F,o,O,0{,0},0(,0),0[,0],0,,0=where,0=let,0=deriving,0=in\ ,0=::\ ,0=->\ ,0==>\ ,0=|\ ,==\ 
-setlocal noinfercase
-setlocal iskeyword=@,48-57,_,128-167,224-235,'
-setlocal keywordprg=
-setlocal nolinebreak
-setlocal nolisp
-setlocal lispwords=
-setlocal nolist
-setlocal makeencoding=
-setlocal makeprg=
-setlocal matchpairs=(:),{:},[:]
-setlocal modeline
-setlocal modifiable
-setlocal nrformats=bin,octal,hex
-set number
-setlocal number
-setlocal numberwidth=4
-setlocal omnifunc=haskellcomplete#Complete
-setlocal path=
-setlocal nopreserveindent
-setlocal nopreviewwindow
-setlocal quoteescape=\\
-setlocal noreadonly
-setlocal norelativenumber
-setlocal norightleft
-setlocal rightleftcmd=search
-setlocal noscrollbind
-setlocal scrolloff=-1
-setlocal shiftwidth=8
-setlocal noshortname
-setlocal showbreak=
-setlocal sidescrolloff=-1
-setlocal signcolumn=auto
-setlocal nosmartindent
-setlocal softtabstop=0
-setlocal nospell
-setlocal spellcapcheck=[.?!]\\_[\\])'\"\	\ ]\\+
-setlocal spellfile=
-setlocal spelllang=en
-setlocal statusline=
-setlocal suffixesadd=
-setlocal swapfile
-setlocal synmaxcol=3000
-if &syntax != 'haskell'
-setlocal syntax=haskell
-endif
-setlocal tabstop=4
-setlocal tagcase=
-setlocal tagfunc=
-setlocal tags=
-setlocal termwinkey=
-setlocal termwinscroll=10000
-setlocal termwinsize=
-setlocal textwidth=0
-setlocal thesaurus=
-setlocal noundofile
-setlocal undolevels=-123456
-setlocal varsofttabstop=
-setlocal vartabstop=
-setlocal wincolor=
-setlocal nowinfixheight
-setlocal nowinfixwidth
-setlocal wrap
-setlocal wrapmargin=0
-silent! normal! zE
-let s:l = 31 - ((0 * winheight(0) + 0) / 1)
-if s:l < 1 | let s:l = 1 | endif
-exe s:l
-normal! zt
-31
-normal! 015|
-wincmd w
-2wincmd w
-exe '1resize ' . ((&lines * 17 + 24) / 48)
-exe 'vert 1resize ' . ((&columns * 88 + 104) / 209)
-exe '2resize ' . ((&lines * 28 + 24) / 48)
-exe 'vert 2resize ' . ((&columns * 88 + 104) / 209)
-exe '3resize ' . ((&lines * 44 + 24) / 48)
-exe 'vert 3resize ' . ((&columns * 120 + 104) / 209)
-exe '4resize ' . ((&lines * 1 + 24) / 48)
-exe 'vert 4resize ' . ((&columns * 120 + 104) / 209)
+3wincmd w
+exe '1resize ' . ((&lines * 23 + 24) / 48)
+exe 'vert 1resize ' . ((&columns * 87 + 104) / 209)
+exe '2resize ' . ((&lines * 22 + 24) / 48)
+exe 'vert 2resize ' . ((&columns * 87 + 104) / 209)
+exe '3resize ' . ((&lines * 23 + 24) / 48)
+exe 'vert 3resize ' . ((&columns * 121 + 104) / 209)
+exe '4resize ' . ((&lines * 22 + 24) / 48)
+exe 'vert 4resize ' . ((&columns * 121 + 104) / 209)
 tabnext 1
-badd +128 src\JSON.hs
-badd +571 src\SQL.hs
-badd +0 src\RequestProcessors.hs
+badd +488 src\RequestProcessors.hs
+badd +2 app\Main.hs
+badd +23 src\JSON.hs
+badd +618 src\SQL.hs
 badd +17 src\SQL\posts\getPostsList.sql
-badd +72 endpoints.txt
-badd +235 app\Main.hs
+badd +69 endpoints.txt
 badd +1 src\SQL\posts\removeTagFromPost.sql
 badd +1 src\SQL\posts\toDraft.sql
 badd +8 src\SQL\categories.sql
@@ -674,13 +722,16 @@ badd +2 src\SQL\migrations\v3\add_function_jsonb_post_tags.sql
 badd +1 src\SQL\migrations\v3\add_function_jsonb_cat_with_parents.sql
 badd +1 src\SQL\migrations\v3\add_function_uri_picture.sql
 badd +1 src
-badd +2 src\SQL\posts\getPostsList_1.sql
+badd +34 src\SQL\posts\getPostsList_1.sql
 badd +1 src\
-badd +1 src\SQL\posts\getPostsList_2.sql
+badd +17 src\SQL\posts\getPostsList_2.sql
 badd +1 src\SQL\posts\totalNumberOfPosts.sql
 badd +1 src\SQL\posts\
 badd +1 JSON.hs
 badd +2 src\SQL\categories\getCategoriesList.sql
+badd +1 src\SQL\posts\getPostsList_3.sql
+badd +1 srs\SQL\
+badd +5 src\SQL\auth\addNewToken.sql
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
 endif

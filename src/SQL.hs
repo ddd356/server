@@ -16,15 +16,16 @@ import Data.ByteString.Char8 ( readInt )
 import Data.ByteString.Lazy ( toStrict )
 import Data.ByteString.Builder ( byteString )
 import Random
-import Data.Time.LocalTime ( TimeOfDay(..), LocalTime(..) )
+import Data.Time.LocalTime ( TimeOfDay(..), LocalTime(..), getZonedTime, ZonedTime(..) )
 import qualified Data.Text as T ( replace, Text(..), pack, unpack, append, intercalate )
 import qualified Data.Text.IO as T ( readFile )
 import Data.Aeson ( Value(..), encode )
 import Data.Either ( rights )
 import Data.Maybe ( isNothing, fromJust )
 import Data.List ( foldl', intersperse, intercalate )
+import Crypto.PBKDF ( sha512PBKDF2 )
 
-type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool)]
+type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
 type SqlCategoriesList = [(Int, ByteString)]
 
@@ -142,6 +143,7 @@ migrations :: [ IO () ]
 migrations = []
     ++ [migration_v2]
     ++ [migration_v3]
+    ++ [migration_v4]
     -- ++ [migration_v...]
 
 migration_v2 :: IO ()
@@ -191,6 +193,21 @@ migration_v3 = do
     close conn
     return ()
 
+migration_v4 :: IO ()
+migration_v4 = do
+    putStrLn "Migration to version 4"
+    (host, user, password, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user password database )
+
+    -- add new column "can_create_posts" to users table
+    query_text <- readFile "src\\SQL\\migrations\\v4\\add_field_can_create_posts.sql"
+    execute_ conn (fromString query_text)
+
+    --raise version
+    execute_ conn "UPDATE version SET version = 4"
+    close conn
+    return ()
+    
 getVersion :: IO [[Int]]
 getVersion = do
     (host, user, password, database) <- confGetPostgresqlConfiguration
@@ -207,202 +224,56 @@ createNewsDb = do
     conn1 <- connect ( ConnectInfo host 5432 user password "" )
     execute_ conn1 $ fromString $ "CREATE DATABASE " ++ database ++ ";"
     close conn1
+
+    query_text <- readFile "src\\SQL\\migrations\\init\\init.sql"
     conn2 <- connect ( ConnectInfo host 5432 user password database )
-    execute_ conn2 $ "BEGIN; \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.users \
-\ ( \
-\     firstname character varying(100), \
-\     lastname character varying(100), \
-\     avatar bytea, \
-\     login character varying(100), \
-\     password character varying(100), \
-\     create_date time(0) without time zone, \
-\     admin boolean, \
-\     id serial NOT NULL, \
-\     PRIMARY KEY (id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.authors \
-\ ( \
-\     id serial NOT NULL, \
-\     description text, \
-\     user_id integer NOT NULL, \
-\     PRIMARY KEY (id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.tags \
-\ ( \
-\     name character varying(100), \
-\     id serial NOT NULL, \
-\     PRIMARY KEY (id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.news \
-\ ( \
-\     short_name character varying(300) NOT NULL, \
-\     create_date timestamp(0) without time zone, \
-\     author integer NOT NULL, \
-\     id serial NOT NULL, \
-\     category integer NOT NULL, \
-\     text text, \
-\     main_picture integer, \
-\     draft boolean NOT NULL, \
-\     PRIMARY KEY (id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.comments \
-\ ( \
-\     id integer NOT NULL, \
-\     news_post integer NOT NULL, \
-\     text text, \
-\     PRIMARY KEY (id, news_post) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.categories \
-\ ( \
-\     id serial NOT NULL, \
-\     name character varying(300) NOT NULL, \
-\     PRIMARY KEY (id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.news_tags \
-\ ( \
-\     news_id integer NOT NULL, \
-\     tag_id integer NOT NULL, \
-\     PRIMARY KEY (news_id, tag_id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.pictures \
-\ ( \
-\     id serial NOT NULL, \
-\     picture bytea, \
-\     PRIMARY KEY (id) \
-\ ); \
-\  \
-\ CREATE TABLE IF NOT EXISTS public.news_pictures \
-\ ( \
-\     news_id integer NOT NULL, \
-\     pictures_id integer NOT NULL, \
-\     PRIMARY KEY (news_id, pictures_id) \
-\ ); \
-\ CREATE TABLE IF NOT EXISTS public.tokens \
-\ ( \
-\     user_id integer NOT NULL, \
-\     token character(20) NOT NULL, \
-\     PRIMARY KEY (user_id) \
-\ ); \
-\ CREATE TABLE IF NOT EXISTS public.version \
-\ ( \
-\     version integer \
-\ ); \
-\  \
-\ ALTER TABLE IF EXISTS public.authors \
-\     ADD FOREIGN KEY (user_id) \
-\     REFERENCES public.users (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news \
-\     ADD FOREIGN KEY (author) \
-\     REFERENCES public.authors (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news \
-\     ADD FOREIGN KEY (category) \
-\     REFERENCES public.categories (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news \
-\     ADD FOREIGN KEY (main_picture) \
-\     REFERENCES public.pictures (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.comments \
-\     ADD FOREIGN KEY (news_post) \
-\     REFERENCES public.news (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news_tags \
-\     ADD FOREIGN KEY (news_id) \
-\     REFERENCES public.news (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news_tags \
-\     ADD FOREIGN KEY (tag_id) \
-\     REFERENCES public.tags (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news_pictures \
-\     ADD FOREIGN KEY (news_id) \
-\     REFERENCES public.news (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\  \
-\ ALTER TABLE IF EXISTS public.news_pictures \
-\     ADD FOREIGN KEY (pictures_id) \
-\     REFERENCES public.pictures (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\  \
-\ ALTER TABLE IF EXISTS public.tokens \
-\     ADD FOREIGN KEY (user_id) \
-\     REFERENCES public.users (id) MATCH SIMPLE \
-\     ON UPDATE NO ACTION \
-\     ON DELETE NO ACTION \
-\     NOT VALID; \
-\ \
-\ ALTER TABLE IF EXISTS public.users \
-\     ADD CONSTRAINT unique_login UNIQUE (login); \
-\ \
-\ INSERT INTO public.users (firstname, lastname, avatar, login, password, create_date, admin) VALUES ('', '', '' , 'admin', 'admin', '13:00:00', true); \
-\ INSERT INTO public.version (version) VALUES (1); \
-\ END;"
+
+    salt <- getRandomString 10
+    let hash = salt ++ (sha512PBKDF2 "admin" salt 2 45)
+
+    zoned_time <- getZonedTime
+    let create_date = zonedTimeToLocalTime zoned_time
+
+    execute conn2 (fromString query_text) (hash, create_date)
     close conn2
     return ()
 
 -- USERS
 
 getUsersList :: Int -> Int -> IO SqlUsersList
--- getUsersList :: IO ByteString
 getUsersList from limit = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query_ conn ( fromString $ "SELECT id, firstname, lastname, login, CASE WHEN avatar IS NULL THEN '' ELSE avatar END, create_date, admin FROM public.users ORDER BY id" ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") ++ ("OFFSET " ++ (show from)) ) :: IO SqlUsersList
+    result <- query_ conn ( fromString $ "SELECT id, firstname, lastname, login, CASE WHEN avatar IS NULL THEN '' ELSE avatar END, create_date, admin, can_create_posts FROM public.users ORDER BY id" ++ (if limit > 0 then " LIMIT " ++ (show limit) else "") ++ ("OFFSET " ++ (show from)) ) :: IO SqlUsersList
     close conn
-    --return . fromString . unlines . concat $ result
     return result
 
-addUser :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> Bool -> IO ByteString
-addUser firstname lastname avatar login password admin = do
+addUser :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> Bool -> Bool -> IO ByteString
+addUser firstname lastname avatar login password admin can_create_posts = do
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- execute conn "INSERT INTO public.users (firstname, lastname, avatar, login, password, create_date, admin) VALUES (?, ?, ?, ?, ?, ?, ?)" (firstname, lastname, Binary avatar, login, password, TimeOfDay 13 00 00 , admin)
+
+    salt <- getRandomString 10
+    let hash = salt ++ (sha512PBKDF2 (toString password) salt 2 45)
+
+    zoned_time <- getZonedTime
+    let create_date = zonedTimeToLocalTime zoned_time
+
+    query_text <- readFile "src\\SQL\\users\\addUser.sql"
+    result <- execute conn (fromString query_text) (firstname, lastname, Binary avatar, login, hash, create_date, admin, can_create_posts)
     close conn
     return "User added"
+
+loginNotExists :: ByteString -> IO (Either String ()) 
+loginNotExists login = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    res <- query conn "SELECT 1 FROM users WHERE login = ?" [login] :: IO [[Int]]
+    close conn
+    return $ case res of
+        [] -> Right ()
+        _ -> Left "User with that login already exists"
 
 -- AUTHORS
 
@@ -427,15 +298,15 @@ addAuthor login description = do
 
 -- POSTS
 
-addPost :: ByteString -> ByteString -> Int -> ByteString -> Int -> ByteString -> Int -> IO ByteString
-addPost login shortName author createDate category text mainPicture = do
+addPost :: ByteString -> Int -> ByteString -> Int -> ByteString -> Int -> IO ()
+addPost shortName author createDate category text mainPicture = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     query_text <- readFile "src\\SQL\\posts\\addPost.sql"
     let create_date = head . rights $ [parseLocalTime "2020-12-21 12:00:00"]
     result <- execute conn (fromString query_text) (shortName, create_date, author, category, text, mainPicture)
     close conn
-    return "Post added to drafts"
+    return ()
 
 fromDraft :: Int -> IO ByteString
 fromDraft postID = do
@@ -577,6 +448,17 @@ getPicturesList from limit = do
     close conn
     return result
 
+getPicture :: Int -> IO ByteString
+getPicture id = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+    query_text <- readFile "src\\SQL\\pictures\\getPicture.sql"
+    result <- query conn ( fromString query_text ) [id] :: IO [[ByteString]]
+    close conn
+    case null result of
+        True -> return ""
+        _ -> return $ head . head $ result
+
 pictureIdExists :: Int -> IO (Either String ())
 pictureIdExists id = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
@@ -694,9 +576,12 @@ checkCredentials :: ByteString -> ByteString -> IO Bool
 checkCredentials login password = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query conn "SELECT id from public.users where login = ? AND password = ? LIMIT 1" (login, password) :: IO [[Int]]
+    --let hash = salt ++ (sha512PBKDF2 (toString password) salt 2 45)
+    result <- query conn "SELECT password FROM users WHERE login = ? LIMIT 1" [login] :: IO [[String]]
     close conn
-    return . not . null $ result
+    return $ case result of
+        [[ hash ]] -> (sha512PBKDF2 (toString password) (take 10 hash) 2 45) == drop 10 hash
+        _ -> False
 
 checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
 checkLoginAndTokenAccordance login token = do
@@ -749,14 +634,8 @@ addNewToken login token = do
     -- open connection
     conn <- connect ( ConnectInfo host 5432 user pass database )
 
-    -- query for removing existent token for user and add a new token
-    res <- execute conn "BEGIN; \
-\ \
-\ DELETE FROM public.tokens WHERE user_id IN (SELECT id FROM public.users WHERE login = 'admin'); \
-\ \
-\ INSERT INTO public.tokens \
-\ SELECT id, ? FROM public.users WHERE login = ?; \
-\ END ;" ( token , login )
+    query_text <- readFile "src\\SQL\\auth\\addNewToken.sql"
+    res <- execute conn (fromString query_text) ( login, token, login )
 
     -- closing connection
     close conn
@@ -778,16 +657,22 @@ checkAdminRights token = do
 
 checkAdminRightsNew :: ByteString -> IO (Either String ())
 checkAdminRightsNew token = do
-    -- read parameters from config
     (host, user, pass, database) <- confGetPostgresqlConfiguration
-
-    -- open connection
     conn <- connect ( ConnectInfo host 5432 user pass database )
 
-    -- query for checking admin rights
-    res <- query conn "SELECT tokens.user_id FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
+    res <- query conn "SELECT 1 FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
     close conn
-    return $ if (length res /= 0) then Right () else Left "You have no admin rights"
+    return $ if (length res /= 0) then Right () else Left "Access denied"
+
+canCreatePosts :: Token -> IO (Either String ())
+canCreatePosts token = do
+    (host, user, pass, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user pass database )
+
+    res <- query conn "SELECT 1 FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.can_create_posts" [token] :: IO [[Int]]
+
+    close conn
+    return $ if (length res /= 0) then Right () else Left "Access denied"
 
 -- OTHER
 

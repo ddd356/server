@@ -42,6 +42,7 @@ library
     , configurator
     , directory
     , http-types
+    , pbkdf
     , postgresql-simple
     , random
     , text
@@ -66,6 +67,7 @@ executable server-exe
     , configurator
     , directory
     , http-types
+    , pbkdf
     , postgresql-simple
     , random
     , server
@@ -92,6 +94,7 @@ test-suite server-test
     , configurator
     , directory
     , http-types
+    , pbkdf
     , postgresql-simple
     , random
     , server

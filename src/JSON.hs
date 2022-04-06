@@ -47,13 +47,14 @@ data ResultUsersList = ResultUsersList {
 } deriving (Generic, Show)
 
 data User = User {
-    usr_id          :: Int,
-    usr_firstname   :: String,
-    usr_lastname    :: String,
-    usr_login       :: String,
-    usr_avatar      :: String,
-    usr_create_date :: String,
-    usr_admin       :: Bool
+    usr_id                  :: Int,
+    usr_firstname           :: String,
+    usr_lastname            :: String,
+    usr_login               :: String,
+    usr_avatar              :: String,
+    usr_create_date         :: String,
+    usr_admin               :: Bool,
+    usr_can_create_posts    :: Bool
 } deriving (Generic, Show)
 
 data ResultPicturesList = ResultPicturesList {
@@ -109,7 +110,7 @@ instance ToJSON ResultPostsList where
 
 resultUsersList :: SqlUsersList -> PaginationData -> ByteString
 resultUsersList l (total, limit, from) = toStrict . encode $ rul where
-    users = map (\(id, firstname, lastname, login, avatar, create_date, admin) -> User id firstname lastname login (toString avatar) (show create_date) admin) l
+    users = map (\(id, firstname, lastname, login, avatar, create_date, admin, can_create_posts) -> User id firstname lastname login (toString avatar) (show create_date) admin can_create_posts) l
     next = if total > from + limit then ( "/users?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
     prev = if from > 0 then ( "users?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
     rul = ResultUsersList limit next prev users

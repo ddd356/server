@@ -56,9 +56,9 @@ app request respond
 
         -- in this action server adds a new post
         putStrLn "Processing add post request"    
-        response_text <- processAddPostRequest request
+        (response_text, status) <- processAddPostRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -67,9 +67,9 @@ app request respond
 
         -- in this action server publish post from draft
         putStrLn "Processing from draft request"    
-        response_text <- processFromDraftRequest request
+        (response_text, status) <- processFromDraftRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -78,9 +78,9 @@ app request respond
 
         -- in this action server publish post from draft
         putStrLn "Processing from draft request"    
-        response_text <- processToDraftRequest request
+        (response_text, status) <- processToDraftRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -89,9 +89,9 @@ app request respond
 
         -- in this action server adds tag to a post
         putStrLn "Processing add tag to post request"
-        response_text <- processAddTagToPostRequest request
+        (response_text, status) <- processAddTagToPostRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -100,9 +100,9 @@ app request respond
 
         -- in this action server removes tag from a post
         putStrLn "Processing add tag to post request"
-        response_text <- processRemoveTagFromPostRequest request
+        (response_text, status) <- processRemoveTagFromPostRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -111,9 +111,9 @@ app request respond
 
         -- in this action server adds tag to a post
         putStrLn "Processing add picture to post request"
-        response_text <- processAddPictureToPostRequest request
+        (response_text, status) <- processAddPictureToPostRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -122,9 +122,9 @@ app request respond
 
         -- in this action server removes picture from a post
         putStrLn "Processing remove picture from post request"
-        response_text <- processRemovePictureFromPostRequest request
+        (response_text, status) <- processRemovePictureFromPostRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -141,9 +141,9 @@ app request respond
 
     | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "update" = do
         putStrLn "Processing update post request"
-        response_text <- processUpdatePostRequest request
+        (response_text, status) <- processUpdatePostRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -152,9 +152,9 @@ app request respond
     -- auth
     | length (pathInfo request) == 1 && last (pathInfo request) == "auth" && action == "auth" = do
         putStrLn "Processing auth request"
-        response_text <- processAuthRequest request
+        (response_text, status) <- processAuthRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -172,9 +172,9 @@ app request respond
     -- add
     | length (pathInfo request) == 1 && last (pathInfo request) == "users" && action == "add" = do
         putStrLn "Processing add user request"
-        response_text <- processAddUsersRequest request
+        (response_text, status) <- processAddUsersRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -183,18 +183,18 @@ app request respond
     -- add
     | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "add" = do
         putStrLn "Processing add author request"    
-        response_text <- processAddAuthorRequest request
+        (response_text, status) <- processAddAuthorRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
     -- delete
     | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "delete" = do
         putStrLn "Processing delete author request"    
-        response_text <- processDeleteAuthorRequest request
+        (response_text, status) <- processDeleteAuthorRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -208,6 +208,7 @@ app request respond
             status200
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
+
     -- list
     | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "list" = do
         putStrLn "Processing list pictures request"
@@ -223,7 +224,7 @@ app request respond
         response_text <- processGetPictureRequest request
         respond $ responseLBS
             status200
-            [("Content-Type", "text/plain")]
+            [("Content-Type", "image/png")]
             (fromStrict response_text)
 
     -- CATEGORIES
@@ -231,9 +232,9 @@ app request respond
     -- add
     | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "add" = do
         putStrLn "Processing add category request"    
-        response_text <- processAddCategoryRequest request
+        (response_text, status) <- processAddCategoryRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
@@ -246,12 +247,12 @@ app request respond
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
-    -- modify
+    -- update
     | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "update" = do
         putStrLn "Processing update category request"
-        response_text <- processUpdateCategoryRequest request
+        (response_text, status) <- processUpdateCategoryRequest request
         respond $ responseLBS
-            status200
+            status
             [("Content-Type", "text/plain")]
             (fromStrict response_text)
 
