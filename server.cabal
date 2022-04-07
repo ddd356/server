@@ -25,8 +25,12 @@ source-repository head
 
 library
   exposed-modules:
+      Conf.Impl.Common
+      Conf.Reader
       JSON
       Lib
+      Log.Handle
+      Log.Impl.BotLog
       Random
       RequestProcessors
       SQL
@@ -41,6 +45,7 @@ library
     , bytestring
     , configurator
     , directory
+    , filepath
     , http-types
     , pbkdf
     , postgresql-simple
@@ -66,6 +71,7 @@ executable server-exe
     , bytestring
     , configurator
     , directory
+    , filepath
     , http-types
     , pbkdf
     , postgresql-simple
@@ -93,6 +99,7 @@ test-suite server-test
     , bytestring
     , configurator
     , directory
+    , filepath
     , http-types
     , pbkdf
     , postgresql-simple

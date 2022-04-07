@@ -17,7 +17,7 @@ data Config = Config
     , database :: String }
 
 config :: String -> Word16 -> String -> String -> String -> Config
-config h p u pwd db = Config h p u pwd db
+config = Config
 
 new :: Config -> IO Handle
 new c = do

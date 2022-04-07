@@ -168,7 +168,5 @@ ALTER TABLE IF EXISTS public.tokens
 ALTER TABLE IF EXISTS public.users
     ADD CONSTRAINT unique_login UNIQUE (login);
 
-INSERT INTO public.users (firstname, lastname, avatar, login, password, create_date, admin, can_create_posts) VALUES ('admin', 'admin', '' , 'admin', ?, ?, true, true);
-
 INSERT INTO public.version (version) VALUES (1);
 END;

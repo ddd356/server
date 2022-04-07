@@ -16,14 +16,17 @@ import Data.ByteString.Char8 ( readInt )
 import Data.ByteString.Lazy ( toStrict )
 import Data.ByteString.Builder ( byteString )
 import Random ( getRandomString )
-import Data.Time.LocalTime ( TimeOfDay(..), LocalTime(..), getZonedTime, ZonedTime(..) )
+import Data.Time.LocalTime ( LocalTime(..), getZonedTime, ZonedTime(..) )
 import Data.Aeson ( Value(..), encode )
 import Data.Either ( rights )
-import Data.Maybe ( isNothing, fromJust )
+import Data.Maybe ( isNothing, fromJust, isJust )
 import Data.List ( foldl', intercalate )
 import Crypto.PBKDF ( sha512PBKDF2 )
+import System.FilePath ( (</>) )
+import Log.Impl.BotLog as Log
+import Log.Handle
 
-type SqlUsersList = [(Int, String, String, String, ByteString, TimeOfDay, Bool, Bool)]
+type SqlUsersList = [(Int, String, String, String, ByteString, LocalTime, Bool, Bool)]
 type SqlPicturesList = [(Int, ByteString)]
 type SqlCategoriesList = [(Int, ByteString)]
 
@@ -45,22 +48,21 @@ data PaginationParameters = PaginationParameters {
     from :: Int
 }
 
-data SortingParameters = SortingParameters {
+newtype SortingParameters = SortingParameters {
     sort_by :: SortingField
 } deriving Show
 
 data SortingField = SortByDate | SortByAuthor | SortByCategory | SortByPicturesQuantity | SortById deriving (Eq, Show)
 
 instance ToRow FilteringParameters where
-    toRow fp = []
-        ++ (if isNothing p1 then [] else [toField p1])
-        ++ (if isNothing p2 then [] else [toField p2])
-        ++ (if isNothing p3 then [] else [toField p3])
-        ++ (if BS.null p4 then [] else [toField p4] ++ [toField p4]) -- two same wildcards
-        ++ (if p5 == 0 then [] else [toField p5])
-        ++ (if BS.null p6 then [] else [toField $ ilike p6])
-        ++ (if BS.null p7 then [] else [toField $ ilike p7])
-        ++ (if BS.null p8 then [] else [toField $ ilike p8] ++ [toField $ ilike p8] ++ [toField $ ilike p8] ++ [toField $ ilike p8]) where
+    toRow fp = [toField p1 | isJust p1]
+            ++ [toField p2 | isJust p2]
+            ++ [toField p3 | isJust p3]
+            ++ (if BS.null p4 then [] else toField p4 : [toField p4]) -- two same wildcards
+            ++ [toField p5 | p5 /= 0]
+            ++ [toField $ ilike p6 | not (BS.null p6)]
+            ++ [toField $ ilike p7 | not (BS.null p7)]
+            ++ (if BS.null p8 then [] else toField p8 : toField p8 : [toField p8]) where
             p1 = created_at fp
             p2 = created_until fp
             p3 = created_since fp
@@ -72,13 +74,12 @@ instance ToRow FilteringParameters where
             ilike x = "%" `BS.append` x `BS.append` "%"
 
 instance ToRow PaginationParameters where
-    toRow pp = toField p1 : toField p2 : [] where
+    toRow pp = [toField p1, toField p2] where
             p1 = if limit pp > 50 || limit pp < 1 then 50 else limit pp
             p2 = from pp
 
 instance ToRow SortingParameters where
-    toRow sp = []
-        ++ [toField p1] where
+    toRow sp = [toField p1] where
             p1 = sort_by sp
 
 instance ToField SortingField where
@@ -88,21 +89,27 @@ instance ToField SortingField where
     toField SortByPicturesQuantity = Plain ( byteString "(SELECT count(*) FROM news_pictures WHERE news_id = news.id)" )
     toField SortById = Plain ( byteString "id" ) -- default
 
-check_news_db_existense :: IO Bool
-check_news_db_existense = do
+checkNewsDBExistense :: IO Bool
+checkNewsDBExistense = do
+
+    Log.log DEBUG "Checking news database existense"
+
     (host, user, password, _) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user password "" )
     db_names <- query_ conn "SELECT datname FROM pg_database;" :: IO [[String]]
     database <- confGetPostgresqlDatabase
     close conn
-    case elem [database] db_names of
-        True -> return True
-        False -> do
-            putStrLn "Database doesn't exist on a server. Run with -create-db to initialize database."
-            return False
+    if [database] `elem` db_names then
+        return True
+    else
+        (do putStrLn "Database doesn't exist on a server. Run with -create-db to initialize database."
+            return False)
 
 confGetPostgresqlConfiguration :: IO (String, String, String, String)
 confGetPostgresqlConfiguration = do
+
+    Log.log DEBUG "Reading PostgreSQL configuration"
+
     host <- confGetPostgresqlHost
     user <- confGetPostgresqlUser
     password <- confGetPostgresqlPassword
@@ -111,51 +118,55 @@ confGetPostgresqlConfiguration = do
 
 confGetPostgresqlHost :: IO String
 confGetPostgresqlHost = do
-    (config, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
-    Cfg.require config "host"
+    (cfg, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
+    Cfg.require cfg "host"
 
 confGetPostgresqlUser :: IO String
 confGetPostgresqlUser = do
-    (config, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
-    Cfg.require config "user"
+    (cfg, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
+    Cfg.require cfg "user"
 
 confGetPostgresqlPassword :: IO String
 confGetPostgresqlPassword = do
-    (config, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
-    Cfg.require config "password"
+    (cfg, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
+    Cfg.require cfg "password"
 
 confGetPostgresqlDatabase :: IO String
 confGetPostgresqlDatabase = do
-    (config, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
-    Cfg.require config "database"
+    (cfg, _) <- Cfg.autoReload Cfg.autoConfig [Cfg.Required "conf.cfg"]
+    Cfg.require cfg "database"
 
 -- UPDATING DB
 
 updateNewsDb :: IO ()
 updateNewsDb = do
+
+    Log.log DEBUG "Updating database"
+
     res <- getVersion
     let version = head . head $ res
     sequence_ $ drop (version-1) migrations
 
 migrations :: [ IO () ]
-migrations = []
-    ++ [migration_v2]
+migrations = [migration_v2]
     ++ [migration_v3]
     ++ [migration_v4]
     -- ++ [migration_v...]
 
 migration_v2 :: IO ()
 migration_v2 = do
-    putStrLn "Migrating to version 2"
+
+    Log.log DEBUG "Migration to version 2"
+
     (host, user, password, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user password database )
     
     -- add column "parent_id"
-    query_text_1 <- readFile "src\\SQL\\migrations\\v2\\add_column_parent_id.sql"
+    query_text_1 <- readFile $ "src" </> "SQL" </> "migrations" </> "v2" </> "add_column_parent_id.sql"
     _ <- execute_ conn (fromString query_text_1)
 
     -- add constraint "parent_id_foreign"
-    query_text_2 <- readFile "src\\SQL\\migrations\\v2\\add_constraint_parent_id_foreign.sql"
+    query_text_2 <- readFile $ "src" </> "SQL" </> "migrations" </> "v2" </> "add_constraint_parent_id_foreign.sql"
     _ <- execute_ conn (fromString query_text_2)
 
     -- raise version
@@ -166,24 +177,26 @@ migration_v2 = do
 
 migration_v3 :: IO ()
 migration_v3 = do
-    putStrLn "Migration to version 3"
+
+    Log.log DEBUG "Migration to version 3"
+
     (host, user, password, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user password database )
 
     -- add function jsonb_cat_with_parents
-    query_text_1 <- readFile "src\\SQL\\migrations\\v3\\add_function_jsonb_cat_with_parents.sql"
+    query_text_1 <- readFile $ "src" </> "SQL" </> "migrations" </> "v3" </> "add_function_jsonb_cat_with_parents.sql"
     _ <- execute_ conn (fromString query_text_1)
 
     -- add function jsonb_post_pictures
-    query_text_2 <- readFile "src\\SQL\\migrations\\v3\\add_function_jsonb_post_pictures.sql"
+    query_text_2 <- readFile $ "src" </> "SQL" </> "migrations" </> "v3" </> "add_function_jsonb_post_pictures.sql"
     _ <- execute_ conn (fromString query_text_2)
 
     -- add function jsonb_post_tags
-    query_text_3 <- readFile "src\\SQL\\migrations\\v3\\add_function_jsonb_post_tags.sql"
+    query_text_3 <- readFile $ "src" </> "SQL" </> "migrations" </> "v3" </> "add_function_jsonb_post_tags.sql"
     _ <- execute_ conn (fromString query_text_3)
 
     -- add function uri_picture
-    query_text_4 <- readFile "src\\SQL\\migrations\\v3\\add_function_uri_picture.sql"
+    query_text_4 <- readFile $ "src" </> "SQL" </> "migrations" </> "v3" </> "add_function_uri_picture.sql"
     _ <- execute_ conn (fromString query_text_4)
 
     -- raise version
@@ -193,12 +206,14 @@ migration_v3 = do
 
 migration_v4 :: IO ()
 migration_v4 = do
-    putStrLn "Migration to version 4"
+
+    Log.log DEBUG "Migration to version 4"
+
     (host, user, password, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user password database )
 
     -- add new column "can_create_posts" to users table
-    query_text <- readFile "src\\SQL\\migrations\\v4\\add_field_can_create_posts.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "migrations" </> "v4" </> "add_field_can_create_posts.sql"
     _ <- execute_ conn (fromString query_text)
 
     --raise version
@@ -218,53 +233,82 @@ getVersion = do
 
 createNewsDb :: IO ()
 createNewsDb = do
+
+    Log.log DEBUG "Creating new database"
+
     (host, user, password, database) <- confGetPostgresqlConfiguration
     conn1 <- connect ( ConnectInfo host 5432 user password "" )
     _ <- execute_ conn1 $ fromString $ "CREATE DATABASE " ++ database ++ ";"
     close conn1
 
-    query_text <- readFile "src\\SQL\\migrations\\init\\init.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "migrations" </> "init" </> "init.sql"
     conn2 <- connect ( ConnectInfo host 5432 user password database )
 
+    _ <- execute_ conn2 (fromString query_text)
+    close conn2
+
+    updateNewsDb
+    addAdmin
+
+    return ()
+
+addAdmin :: IO ()
+addAdmin = do
+
+    Log.log DEBUG "Adding admin user"
+
+    (host, user, password, database) <- confGetPostgresqlConfiguration
+    conn <- connect ( ConnectInfo host 5432 user password database )
+
+    query_text <- readFile ("src" </> "SQL" </> "migrations" </> "init" </> "addAdmin.sql")
+
     salt <- getRandomString 10
-    let hash = salt ++ (sha512PBKDF2 "admin" salt 2 45)
+    let hash = salt ++ sha512PBKDF2 "admin" salt 2 45
 
     zoned_time <- getZonedTime
     let create_date = zonedTimeToLocalTime zoned_time
 
-    _ <- execute conn2 (fromString query_text) (hash, create_date)
-    close conn2
+    _ <- execute conn (fromString query_text) (hash, create_date)
+    close conn
     return ()
 
 -- USERS
 
 getUsersList :: Int -> Int -> IO SqlUsersList
 getUsersList frm lmt = do
+
+    Log.log DEBUG "Getting user list"
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    result <- query_ conn ( fromString $ "SELECT id, firstname, lastname, login, CASE WHEN avatar IS NULL THEN '' ELSE avatar END, create_date, admin, can_create_posts FROM public.users ORDER BY id" ++ (if lmt > 0 then " LIMIT " ++ (show lmt) else "") ++ ("OFFSET " ++ (show frm)) ) :: IO SqlUsersList
+    result <- query_ conn ( fromString $ "SELECT id, firstname, lastname, login, CASE WHEN avatar IS NULL THEN '' ELSE avatar END, create_date, admin, can_create_posts FROM public.users ORDER BY id" ++ (if lmt > 0 then " LIMIT " ++ show lmt else "") ++ ("OFFSET " ++ show frm) ) :: IO SqlUsersList
     close conn
     return result
 
 addUser :: ByteString -> ByteString -> ByteString -> ByteString -> ByteString -> Bool -> Bool -> IO ByteString
 addUser firstname lastname avatar login password admin can_create_posts = do
 
+    Log.log DEBUG ("Adding new user")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
 
     salt <- getRandomString 10
-    let hash = salt ++ (sha512PBKDF2 (toString password) salt 2 45)
+    let hash = salt ++ sha512PBKDF2 (toString password) salt 2 45
 
     zoned_time <- getZonedTime
     let create_date = zonedTimeToLocalTime zoned_time
 
-    query_text <- readFile "src\\SQL\\users\\addUser.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "users" </> "addUser.sql"
     _ <- execute conn (fromString query_text) (firstname, lastname, Binary avatar, login, hash, create_date, admin, can_create_posts)
     close conn
     return "User added"
 
 loginNotExists :: ByteString -> IO (Either String ()) 
 loginNotExists login = do
+
+    Log.log DEBUG "Check login existense"
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     res <- query conn "SELECT 1 FROM users WHERE login = ?" [login] :: IO [[Int]]
@@ -277,6 +321,9 @@ loginNotExists login = do
 
 deleteAuthor :: ByteString -> IO ByteString
 deleteAuthor login = do
+
+    Log.log DEBUG ("Deleting author")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     _ <- execute conn "DELETE FROM public.authors WHERE user_id IN (SELECT id FROM public.users WHERE users.login = ?)" [login]
@@ -285,6 +332,9 @@ deleteAuthor login = do
 
 addAuthor :: ByteString -> ByteString -> IO ByteString
 addAuthor login description = do
+
+    Log.log DEBUG ("Adding new author")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     _ <- execute conn "INSERT INTO public.authors (description, user_id) \
@@ -298,9 +348,12 @@ addAuthor login description = do
 
 addPost :: ByteString -> Int -> Int -> ByteString -> Int -> IO ()
 addPost shortName athr category text mainPicture = do
+
+    Log.log DEBUG ("Adding a new post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\addPost.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "addPost.sql"
     let create_date = head . rights $ [parseLocalTime "2020-12-21 12:00:00"]
     _ <- execute conn (fromString query_text) (shortName, create_date, athr, category, text, mainPicture)
     close conn
@@ -308,66 +361,85 @@ addPost shortName athr category text mainPicture = do
 
 fromDraft :: Int -> IO ByteString
 fromDraft postID = do
+
+    Log.log DEBUG ("Publishing post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\fromDraft.sql"
-    result <- execute conn (fromString query_text) [postID]
-    putStrLn $ show result
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "fromDraft.sql"
+    _ <- execute conn (fromString query_text) [postID]
     close conn
     return "Post published from drafts"
 
 toDraft :: Int -> IO ByteString
 toDraft postID = do
+
+    Log.log DEBUG ("Moving post to draft")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\toDraft.sql"
-    result <- execute conn (fromString query_text) [postID]
-    putStrLn $ show result
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "toDraft.sql"
+    _ <- execute conn (fromString query_text) [postID]
     close conn
     return "Post moved to drafts"
 
 addTagToPost :: Int -> Int -> IO ByteString
 addTagToPost postID tagID = do
+
+    Log.log DEBUG ("Adding tag to post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\addTagToPost.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "addTagToPost.sql"
     _ <- execute conn (fromString query_text) (postID, tagID)
     close conn
     return "Tag added to post"
  
 removeTagFromPost :: Int -> Int -> IO ByteString
 removeTagFromPost postID tagID = do
+
+    Log.log DEBUG ("Removing tag from post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\removeTagFromPost.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "removeTagFromPost.sql"
     _ <- execute conn (fromString query_text) (postID, tagID)
     close conn
     return "Tag removed from post"
 
 addPictureToPost :: Int -> Int -> IO ByteString
 addPictureToPost postID pictureID = do
+
+    Log.log DEBUG ("Adding picture to post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\addPictureToPost.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "addPictureToPost.sql"
     _ <- execute conn (fromString query_text) (postID, pictureID)
     close conn
     return "Picture added to post"
 
 removePictureFromPost :: Int -> Int -> IO ByteString
 removePictureFromPost postID pictureID = do
+
+    Log.log DEBUG ("Removing picture from post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\posts\\removePictureFromPost.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "posts" </> "removePictureFromPost.sql"
     _ <- execute conn (fromString query_text) (postID, pictureID)
     close conn
     return "Picture removed from post"
 
 getPostsList :: FilteringParameters -> SortingParameters -> PaginationParameters -> Token -> Bool -> IO ByteString
 getPostsList fp sp pp token showDraft = do
+
+    Log.log DEBUG ("Gettin list of posts")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    template_1 <- readFile "src\\SQL\\posts\\getPostsList_1.sql"
-    template_2 <- readFile "src\\SQL\\posts\\getPostsList_2.sql"
+    template_1 <- readFile $ "src" </> "SQL" </> "posts" </> "getPostsList_1.sql"
+    template_2 <- readFile $ "src" </> "SQL" </> "posts" </> "getPostsList_2.sql"
     
     let query_text =
             template_1
@@ -387,26 +459,26 @@ getPostsList fp sp pp token showDraft = do
             ++ (if BS.null $ search fp then "" else " AND (subquery1.firstname ILIKE ? OR subquery1.lastname = ? OR short_name ILIKE ? OR text ILIKE ?)")
             ++ template_2
  
-    putStrLn query_text
-    putStrLn . show $ sp
-    putStrLn . show $ [toField token] ++ toRow fp ++ toRow sp ++ toRow pp
     res <- query conn (fromString query_text) ([toField token] ++ [toField showDraft] ++ toRow fp ++ toRow sp ++ toRow pp) :: IO [[Value]]
-    let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
+    let json = if null res then "[]" else toStrict . encode . head . head $ res
 
     close conn
     return json 
 
 updatePost :: Int -> [(String, ByteString)] -> IO ByteString
 updatePost id' vals = do
+
+    Log.log DEBUG ("Updating post")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
 
-    let tmplt =  (++ " = ?")
-    let (pnames, pvals) = foldl' f ([],[]) vals where
-        f (ns, vs) (n, v) = case n of
-             "category" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
-             "main_picture" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
-             _ -> (tmplt n : ns, (toField v) : vs)
+    let tmplt = (++ " = ?")
+    let f (ns, vs) (n, v) = case n of
+            "category" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
+            "main_picture" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
+            _ -> (tmplt n : ns, toField v : vs)
+    let (pnames, pvals) = foldl' f ([],[]) vals
 
     let set_text = intercalate ", " pnames
     let pvals' = pvals ++ [toField id']
@@ -414,7 +486,7 @@ updatePost id' vals = do
     let query_text = "UPDATE news SET "
             ++ set_text
             ++ " WHERE id = ?"
-    _ <- execute conn (fromString query_text) (pvals')
+    _ <- execute conn (fromString query_text) pvals'
     close conn
     return "Post updated"
 
@@ -423,12 +495,15 @@ testQ = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     res <- query conn (fromString "SELECT ? + ?") ( [2,2] :: [Int]) :: IO [[Int]]
-    putStrLn . show $ res
+    print res
 
 -- PICTURES
     
 addPicture :: ByteString -> IO ByteString
 addPicture picture = do
+
+    Log.log DEBUG ("Adding new picture")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     _ <- execute conn "INSERT INTO public.pictures (picture) VALUES (?)" [Binary picture]
@@ -437,28 +512,35 @@ addPicture picture = do
 
 getPicturesList :: Int -> Int -> IO SqlPicturesList
 getPicturesList frm lmt = do
+
+    Log.log DEBUG ("Getting list of pictures")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     result <- query_ conn ( fromString $ 
         "SELECT id, picture FROM public.pictures ORDER BY id"
-        ++ (if lmt > 0 then " LIMIT " ++ (show lmt) else "") 
-        ++ ("OFFSET " ++ (show frm)) ) :: IO SqlPicturesList
+        ++ (if lmt > 0 then " LIMIT " ++ show lmt else "") 
+        ++ ("OFFSET " ++ show frm) ) :: IO SqlPicturesList
     close conn
     return result
 
 getPicture :: Int -> IO ByteString
 getPicture picture_id = do
+
+    Log.log DEBUG ("Getting a picture")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\pictures\\getPicture.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "pictures" </> "getPicture.sql"
     result <- query conn ( fromString query_text ) [picture_id] :: IO [[ByteString]]
     close conn
-    case null result of
-        True -> return ""
-        _ -> return $ head . head $ result
+    if null result then return "" else return $ head . head $ result
 
 pictureIdExists :: Int -> IO (Either String ())
 pictureIdExists picture_id = do
+
+    Log.log DEBUG ("Checking picture ID exists")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     res <- query conn "SELECT id FROM pictures WHERE id = ?" [picture_id] :: IO [[Int]]
@@ -471,6 +553,9 @@ pictureIdExists picture_id = do
 
 addCategory :: ByteString -> Int -> IO ByteString
 addCategory name parent_id = do
+
+    Log.log DEBUG ("Adding new category")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     _ <- case parent_id of
@@ -481,61 +566,32 @@ addCategory name parent_id = do
 
 getCategoriesList :: PaginationParameters -> IO ByteString
 getCategoriesList pp = do
+
+    Log.log DEBUG ("Getting category list")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\categories\\getCategoriesList.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "categories" </> "getCategoriesList.sql"
 
     res <- query conn ( fromString query_text) (toRow pp) :: IO [[Value]]
-    let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
+    let json = if null res then "[]" else toStrict . encode . head . head $ res
 
     close conn
     return json
 
---getCategoriesListOld :: IO ByteString
---getCategoriesListOld = do
---    (host, user, pass, database) <- confGetPostgresqlConfiguration
---    conn <- connect ( ConnectInfo host 5432 user pass database )
---
---    -- get a maximum nested level of categories
---    query_text_max_lvl <- readFile "src\\SQL\\categories\\max_lvl.sql"
---    res_max_lvl <- query_ conn (fromString query_text_max_lvl) :: IO [[Int]]
---    let max_lvl = if length res_max_lvl == 0 then 0 else head . head $ res_max_lvl :: Int
---
---    h <- T.readFile "src\\SQL\\categories\\head.sql"
---    t <- T.readFile "src\\SQL\\categories\\tails.sql"
---    e <- T.readFile "src\\SQL\\categories\\end.sql"
---    
---    -- prepare query_text
---    let query_text = T.unpack $ categoriesQueryText h t e max_lvl
---    putStrLn query_text
---    res <- query_ conn ( fromString query_text ) :: IO [[Value]]
---    let json = if length res == 0 then "[]" else toStrict . encode . head . head $ res
---
---    close conn
---
---    return json
---
----- builds query text from head and tail. 
---categoriesQueryText :: T.Text -> T.Text -> T.Text -> Int -> T.Text -- head, tail, end, max_lvl
---categoriesQueryText h t e m = T.append hd $ T.append tails e where
---    hd = T.replace "?" (T.pack . show $ m) h :: T.Text
---    tails = T.intercalate ", " . reverse . zipWith placeLevel [0..(m-1)] $ repeat t :: T.Text
---    placeLevel l txt = (T.replace "?2" ( intToText $ l+1) $ T.replace "?1" ( intToText l) txt) :: T.Text
---    intToText = T.pack . show
-
-bytestringToInt :: ByteString -> Int
-bytestringToInt = fst . fromJust . readInt
-
 updateCategory :: Int -> [(String, ByteString)] -> IO ByteString
 updateCategory cat_id vals = do
+
+    Log.log DEBUG ("Updating category")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     
     let tmplt =  (++ " = ?")
-    let (pnames, pvals) = foldl' f ([],[]) vals where
-        f (ns, vs) (n, v) = case n of
-             "pid" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
-             _ -> (tmplt n : ns, (toField v) : vs)
+    let f (ns, vs) (n, v) = case n of
+         "parent_id" -> (tmplt n : ns, (if v == "null" then toField PG.Null else toField . bytestringToInt $ v) : vs)
+         _ -> (tmplt n : ns, toField v : vs)
+    let (pnames, pvals) = foldl' f ([],[]) vals
 
     let set_text = intercalate ", " pnames
     let pvals' = pvals ++ [toField cat_id]
@@ -543,12 +599,15 @@ updateCategory cat_id vals = do
     let query_text = "UPDATE categories SET "
             ++ set_text
             ++ " WHERE id = ?"
-    _ <- execute conn (fromString query_text) (pvals')
+    _ <- execute conn (fromString query_text) pvals'
     close conn
     return "Category updated"
 
 categoryIdExists :: Int -> IO (Either String ())
 categoryIdExists cat_id = do
+
+    Log.log DEBUG ("Checking category ID exists")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     res <- query conn "SELECT id FROM categories WHERE id = ?" [cat_id] :: IO [[Int]]
@@ -562,6 +621,9 @@ categoryIdExists cat_id = do
 
 addTag :: ByteString -> IO ByteString
 addTag name = do
+
+    Log.log DEBUG ("Adding a new tag")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     _ <- execute conn "INSERT INTO public.tags (name) VALUES (?)" [name]
@@ -572,17 +634,23 @@ addTag name = do
 
 checkCredentials :: ByteString -> ByteString -> IO Bool
 checkCredentials login password = do
+
+    Log.log DEBUG "Checking credentials"
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     --let hash = salt ++ (sha512PBKDF2 (toString password) salt 2 45)
     result <- query conn "SELECT password FROM users WHERE login = ? LIMIT 1" [login] :: IO [[String]]
     close conn
     return $ case result of
-        [[ hash ]] -> (sha512PBKDF2 (toString password) (take 10 hash) 2 45) == drop 10 hash
+        [[ hash ]] -> sha512PBKDF2 (toString password) (take 10 hash) 2 45 == drop 10 hash
         _ -> False
 
 checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
 checkLoginAndTokenAccordance login token = do
+
+    Log.log DEBUG ("Checking login and token accordance")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
     result <- query conn "SELECT tokens.user_id FROM public.tokens INNER JOIN public.users ON users.id = tokens.user_id WHERE tokens.token = ? AND users.login = ?" (token, login) :: IO [[Int]]
@@ -591,24 +659,33 @@ checkLoginAndTokenAccordance login token = do
 
 checkPostAndTokenAccordance :: Int -> ByteString -> IO Bool
 checkPostAndTokenAccordance postID token = do
+
+    Log.log DEBUG ("Checking post and token accordance")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\postAndTokenAccordance.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "postAndTokenAccordance.sql"
     result <- query conn (fromString query_text) (postID, token) :: IO [[Int]]
     close conn
     return . not . null $ result
     
 checkPostAndTokenAccordanceNew :: Int -> ByteString -> IO (Either String ())
 checkPostAndTokenAccordanceNew postID token = do
+
+    Log.log DEBUG ("Checking post and token accordance")
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    query_text <- readFile "src\\SQL\\postAndTokenAccordance.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "postAndTokenAccordance.sql"
     result <- query conn (fromString query_text) (postID, token) :: IO [[Int]]
     close conn
-    return $ if null result then Left("You have no access") else Right()  
+    return $ if null result then Left "Access denied" else Right()  
 
 generateToken :: ByteString -> IO ByteString
 generateToken login = do
+
+    Log.log DEBUG ("Generating new token for user " ++ toString login)
+
     -- read parameters from config
     (host, user, pass, database) <- confGetPostgresqlConfiguration
 
@@ -620,19 +697,22 @@ generateToken login = do
 
     -- query for checking token existense
     res <- query conn "SELECT token FROM public.tokens WHERE token = ?" [newToken] :: IO [[String]]
-    if length res > 0
+    if not (null res)
         then generateToken login
         else return . fromString $ newToken
 
 addNewToken :: ByteString -> ByteString -> IO ()
 addNewToken login token = do
+
+    Log.log DEBUG ("Adding new token for user " ++ show login)
+
     -- read parameters from config
     (host, user, pass, database) <- confGetPostgresqlConfiguration
 
     -- open connection
     conn <- connect ( ConnectInfo host 5432 user pass database )
 
-    query_text <- readFile "src\\SQL\\auth\\addNewToken.sql"
+    query_text <- readFile $ "src" </> "SQL" </> "auth" </> "addNewToken.sql"
     _ <- execute conn (fromString query_text) ( login, token, login )
 
     -- closing connection
@@ -642,6 +722,9 @@ addNewToken login token = do
 
 checkAdminRights :: ByteString -> IO Bool
 checkAdminRights token = do
+
+    Log.log DEBUG "Checking admin rights"
+
     -- read parameters from config
     (host, user, pass, database) <- confGetPostgresqlConfiguration
 
@@ -651,16 +734,19 @@ checkAdminRights token = do
     -- query for checking admin rights
     res <- query conn "SELECT tokens.user_id FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
     close conn
-    return $ length res /= 0
+    return $ not (null res)
 
 checkAdminRightsNew :: ByteString -> IO (Either String ())
 checkAdminRightsNew token = do
+
+    Log.log DEBUG "Checking admin rights"
+
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
 
     res <- query conn "SELECT 1 FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.admin" [token] :: IO [[Int]]
     close conn
-    return $ if (length res /= 0) then Right () else Left "Access denied"
+    return $ if not (null res) then Right () else Left "Access denied"
 
 canCreatePosts :: Token -> IO (Either String ())
 canCreatePosts token = do
@@ -670,7 +756,7 @@ canCreatePosts token = do
     res <- query conn "SELECT 1 FROM tokens INNER JOIN users ON tokens.user_id = users.id WHERE tokens.token = ? AND users.can_create_posts" [token] :: IO [[Int]]
 
     close conn
-    return $ if (length res /= 0) then Right () else Left "Access denied"
+    return $ if not (null res) then Right () else Left "Access denied"
 
 -- OTHER
 
@@ -687,7 +773,7 @@ totalNumberOfPosts :: FilteringParameters -> IO Int
 totalNumberOfPosts fp = do
     (host, user, pass, database) <- confGetPostgresqlConfiguration
     conn <- connect ( ConnectInfo host 5432 user pass database )
-    template <- readFile "src\\SQL\\posts\\totalNumberOfPosts.sql"
+    template <- readFile $ "src" </> "SQL" </> "posts" </> "totalNumberOfPosts.sql"
     let query_text = template
             ++ (if isNothing $ created_at fp then "" else " AND create_date = ?")
             ++ (if isNothing $ created_until fp then "" else " AND create_date <= ?")
@@ -701,3 +787,6 @@ totalNumberOfPosts fp = do
     let res = head . head $ query_res
     close conn
     return res
+
+bytestringToInt :: ByteString -> Int
+bytestringToInt = fst . fromJust . readInt

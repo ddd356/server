@@ -1,13 +1,13 @@
-create function cat_with_parents(i integer) returns jsonb as '
+create function jsonb_cat_with_parents(i integer) returns jsonb as '
 with recursive
 t1 as (
-	select id, name, pid, 1 as n
+	select id, name, parent_id as pid, 1 as n
 	from categories
 	where id = i
 	
 	union all
 	
-	select c.id, c.name, c.pid, t1.n + 1
+	select c.id, c.name, c.parent_id as pid, t1.n + 1
 	from t1
 		join categories c
 			on t1.pid = c.id

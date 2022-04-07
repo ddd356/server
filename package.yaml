@@ -35,6 +35,7 @@ dependencies:
 - wai-extra
 - aeson
 - pbkdf
+- filepath
 
 library:
   source-dirs: src

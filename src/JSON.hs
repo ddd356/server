@@ -108,8 +108,8 @@ instance ToJSON ResultPostsList where
 resultUsersList :: SqlUsersList -> PaginationData -> ByteString
 resultUsersList l (total, limit, from) = toStrict . encode $ rul where
     users = map (\(user_id, firstname, lastname, login, avatar, create_date, admin, can_create_posts) -> User user_id firstname lastname login (toString avatar) (show create_date) admin can_create_posts) l
-    next = if total > from + limit then ( "/users?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
-    prev = if from > 0 then ( "users?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    next = if total > from + limit then "/users?" ++ "action=list" ++ "&from=" ++ show (from + limit) ++ "&limit=" ++ show limit else ""
+    prev = if from > 0 then "users?" ++ "action=list" ++ "&from" ++ show ( max (from - limit) 0 ) ++ "&limit=" ++ show limit else ""
     rul = ResultUsersList limit next prev users
 
 resultRequest :: String -> String -> ByteString
@@ -118,20 +118,20 @@ resultRequest res description = toStrict . encode $ RequestResult res descriptio
 resultPicturesList :: SqlPicturesList -> PaginationData -> ByteString
 resultPicturesList l (total, limit, from) = toStrict . encode $ rpl where
     pictures = map (\ (picture_id, picture) -> Picture picture_id (toString picture)) l
-    next = if total > from + limit then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
-    prev = if from > 0 then ( "/pictures?" ++ "action=list" ++ "&from=" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    next = if total > from + limit then "/pictures?" ++ "action=list" ++ "&from=" ++ show (from + limit) ++ "&limit=" ++ show limit else ""
+    prev = if from > 0 then "/pictures?" ++ "action=list" ++ "&from=" ++ show ( max (from - limit) 0 ) ++ "&limit=" ++ show limit else ""
     rpl = ResultPicturesList limit next prev pictures
 
 resultCategoriesList :: ByteString -> PaginationData -> ByteString
 resultCategoriesList categories (total, limit, from) = toStrict . encode $ rcl where
-    next = if total > from + limit then ( "/categories?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit) ) else ""
-    prev = if from > 0 then ( "/categories?" ++ "action=list" ++ "&from=" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    next = if total > from + limit then "/categories?" ++ "action=list" ++ "&from=" ++ show (from + limit) ++ "&limit=" ++ show limit else ""
+    prev = if from > 0 then  "/categories?" ++ "action=list" ++ "&from=" ++ show ( max (from - limit) 0 ) ++ "&limit=" ++ show limit else ""
     val = fromJust . decode . fromStrict $ categories :: Value
     rcl = ResultCategoriesList limit next prev val
 
 resultPostsList :: ByteString -> PaginationData -> ByteString 
 resultPostsList posts (total, limit, from) = toStrict . encode $ rpl where
-    next = if total > from + limit then ( "/posts?" ++ "action=list" ++ "&from=" ++ (show $ from + limit) ++ "&limit=" ++ (show limit)  ) else ""
-    prev = if from > 0 then ( "posts?" ++ "action=list" ++ "&from" ++ (show $ max (from - limit) 0 ) ++ "&limit=" ++ (show limit) ) else ""
+    next = if total > from + limit then "/posts?" ++ "action=list" ++ "&from=" ++ show (from + limit) ++ "&limit=" ++ show limit else ""
+    prev = if from > 0 then "posts?" ++ "action=list" ++ "&from" ++ show ( max (from - limit) 0 ) ++ "&limit=" ++ show limit else ""
     val = fromJust . decode . fromStrict $ posts :: Value
     rpl = ResultPostsList limit next prev val

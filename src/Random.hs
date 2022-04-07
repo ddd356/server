@@ -21,15 +21,14 @@ getRandomLetter = selectRandomElement randomLetterRange
 
 -- Example of getting a random string composed of a-zA-Z
 getRandomString :: Int -> IO String
-getRandomString size = addRandomLettersToString "" size
+getRandomString = addRandomLettersToString ""
   where
   addRandomLettersToString :: String -> Int -> IO String
   addRandomLettersToString s n
     | length s >= n = return s
     | length s < n = do
       a <- getRandomLetter
-      b <- addRandomLettersToString (s ++ a:[]) n
-      return b
+      addRandomLettersToString (s ++ [a]) n
   addRandomLettersToString _ _  = return ""
   --addRandomLetterToString :: String -> IO String
   --addRandomLetterToString s = do

@@ -1,15 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module RequestProcessors where
 
-import JSON
-import Network.Wai
-import Network.HTTP.Types
+import Log.Impl.BotLog as Log
+import Log.Handle
+import JSON (resultUsersList, resultRequest, resultPicturesList, resultCategoriesList, resultPostsList )
+import Network.Wai ( Request, queryString )
+import Network.HTTP.Types ( Status, status200, status401, status400, status404 )
 import SQL ( checkCredentials, generateToken, addNewToken, getUsersList, totalNumberOfRowsInTable, checkAdminRightsNew, loginNotExists, addUser, checkAdminRights, checkLoginAndTokenAccordance, addAuthor, addTag, bytestringToInt, updatePost, checkPostAndTokenAccordance, checkPostAndTokenAccordanceNew, pictureIdExists, categoryIdExists, totalNumberOfPosts, getPostsList, PaginationParameters(..), SortingParameters(..), FilteringParameters(..), SortingField(..), removePictureFromPost, addPictureToPost, removeTagFromPost, addTagToPost, toDraft, fromDraft, addPost, canCreatePosts, updateCategory, getCategoriesList, addCategory, getPicture, getPicturesList, addPicture, deleteAuthor, canCreatePosts, updateCategory, getCategoriesList, addCategory)
 import Data.ByteString ( ByteString )
 import Data.ByteString.Lazy ( toStrict )
 import Data.ByteString.UTF8 ( toString )
 import Data.ByteString.Char8 ( readInt )
-import Data.Maybe ( fromMaybe, isNothing, fromJust )
+import Data.Maybe ( fromMaybe, isJust, isNothing, fromJust )
 import Control.Monad ( join )
 import Network.Wai.Parse ( parseRequestBody, lbsBackEnd, FileInfo(..) )
 import Database.PostgreSQL.Simple.Time ( parseLocalTime )
@@ -19,12 +21,12 @@ defaultLimit = 50
 defaultFrom = 0
 
 getParam :: ByteString -> [(ByteString, Maybe ByteString)] -> Maybe ByteString
-getParam p query = case lookup p $ query of
+getParam p query = case lookup p query of
     Just x -> x
     _ -> Nothing
 
-check_all_parameters_nothing :: [Maybe a] -> Either String ()
-check_all_parameters_nothing ps =  if all isNothing ps then Left "All parameters empty" else Right ()
+checkAllParametersNothing :: [Maybe a] -> Either String ()
+checkAllParametersNothing ps =  if all isNothing ps then Left "All parameters empty" else Right ()
 
 -- AUTH
 
@@ -36,13 +38,17 @@ processAuthRequest request = do
     let password = fromMaybe "" . join $ lookup "password" query
    
     credentials_correct  <- checkCredentials login password
+
+    Log.log DEBUG ("Credentials_correct=" ++ show credentials_correct)
+
     token <- generateToken login
 
-    case credentials_correct of
-        True -> do
+    if credentials_correct then 
+        (do
             addNewToken login token
-            return (token, status200)
-        _ -> return ("Authorization fails", status401)
+            return (token, status200))
+    else
+        return ("Authorization fails", status401)
 
 -- USERS
 
@@ -50,7 +56,7 @@ processListUsersRequest :: Request -> IO ByteString
 processListUsersRequest request = do
     -- get token from request
     let frm = fst . fromMaybe (defaultFrom, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
-    let lmt = min defaultLimit . min defaultLimit . fst . fromMaybe (defaultLimit, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
+    let lmt = min defaultLimit . fst . fromMaybe (defaultLimit, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
 
     res <- getUsersList frm lmt
     total <- totalNumberOfRowsInTable "users"
@@ -76,7 +82,7 @@ processAddUsersRequest request = do
     check_token <- checkAdminRightsNew token
     check_login <- loginNotExists login
 
-    let check = (\_ -> check_token) () >>= (\_ -> check_login)
+    let check = check_token >> check_login
 
     case check of
         Left "Access denied" -> return ("", status404)
@@ -99,11 +105,11 @@ processAddAuthorRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-            _ <- addAuthor login description
-            return (resultRequest "ok" "Author added", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- addAuthor login description
+            return (resultRequest "ok" "Author added", status200))
+    else
+        return ("Access denied", status401)
 
 processDeleteAuthorRequest :: Request -> IO (ByteString, Status)
 processDeleteAuthorRequest request = do
@@ -116,11 +122,11 @@ processDeleteAuthorRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-            _ <- deleteAuthor login
-            return (resultRequest "ok" "Author deleted", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- deleteAuthor login
+            return (resultRequest "ok" "Author deleted", status200))
+    else
+        return ("Access denied", status401)
 
 -- PICTURES
 
@@ -157,13 +163,12 @@ processGetPictureRequest request = do
                 Nothing -> return $ Left "id incorrect"
                 _ -> pictureIdExists . bytestringToInt . fromJust $ picture_id
 
-    let check = (\_ -> check_id) ()
+    let check = check_id
 
     case check of
         Left x -> return $ resultRequest "error" x
         _ -> do
-            res <- getPicture . bytestringToInt . fromJust $ picture_id
-            return res
+            getPicture . bytestringToInt . fromJust $ picture_id
 
 -- CATEGORIES
 
@@ -178,11 +183,11 @@ processAddCategoryRequest request = do
     -- check credentials for admin rights
     credentials_correct <- checkAdminRights token
 
-    case credentials_correct of
-        True -> do
-            _ <- addCategory name parent_id
-            return (resultRequest "ok" "Category added", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- addCategory name parent_id
+            return (resultRequest "ok" "Category added", status200))
+    else
+        return ("Access denied", status401)
 
 -- list
 processListCategoriesRequest :: Request -> IO ByteString
@@ -205,7 +210,7 @@ processUpdateCategoryRequest request = do
 
     let c_id = getParam "id" query
     let name = getParam "name" query
-    let pid = getParam "pid" query
+    let pid = getParam "parent_id" query
     let token = getParam "token" query
 
     -- checks
@@ -227,11 +232,10 @@ processUpdateCategoryRequest request = do
                 _ -> Right ()
 
 
-    let check = (\_ -> credentials_correct) () >>= (\_ -> check_all_parameters_nothing [name, pid]) >>= (\_ -> check_id_int) >>= (\_ -> check_pid_int_or_null_or_empty)
+    let check = credentials_correct >> checkAllParametersNothing [name, pid] >> check_id_int >> check_pid_int_or_null_or_empty
 
-    let vals = []
-            ++ (if isNothing name then [] else [("name", fromJust name)])
-            ++ (if isNothing pid then [] else [("pid", fromJust pid)])
+    let vals = [("name", fromJust name) | isJust name]
+            ++ [("parent_id", fromJust pid) | isJust pid]
 
     case check of
         Left "Access denied" -> return ("Access denied", status401)
@@ -272,11 +276,11 @@ processFromDraftRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-                _ <- fromDraft postID
-                return ("Post published", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- fromDraft postID
+            return ("Post published", status200))
+    else
+        return ("Access denied", status401)
 
 processToDraftRequest :: Request -> IO (ByteString, Status)
 processToDraftRequest request = do
@@ -289,11 +293,11 @@ processToDraftRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-                _ <- toDraft postID
-                return ("Post moved to drafts", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- toDraft postID
+            return ("Post moved to drafts", status200))
+    else
+        return ("Access denied", status401)
 
 processAddTagToPostRequest :: Request -> IO (ByteString, Status)
 processAddTagToPostRequest request = do
@@ -307,11 +311,11 @@ processAddTagToPostRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-                _ <- addTagToPost postID tagID
-                return ("Tag added to post", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- addTagToPost postID tagID
+            return ("Tag added to post", status200))
+    else
+        return ("Access denied", status401)
 
 processRemoveTagFromPostRequest :: Request -> IO (ByteString, Status)
 processRemoveTagFromPostRequest request = do
@@ -325,11 +329,11 @@ processRemoveTagFromPostRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-                _ <- removeTagFromPost postID tagID
-                return ("Tag removed from post", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- removeTagFromPost postID tagID
+            return ("Tag removed from post", status200))
+    else
+        return ("Access denied", status401)
 
 processAddPictureToPostRequest :: Request -> IO (ByteString, Status)
 processAddPictureToPostRequest request = do
@@ -343,11 +347,11 @@ processAddPictureToPostRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-                _ <- addPictureToPost postID pictureID
-                return ("Picture added to post", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- addPictureToPost postID pictureID
+            return ("Picture added to post", status200))
+    else
+        return ("Access denied", status401)
 
 processRemovePictureFromPostRequest :: Request -> IO (ByteString, Status)
 processRemovePictureFromPostRequest request = do
@@ -361,11 +365,11 @@ processRemovePictureFromPostRequest request = do
 
     let credentials_correct = admin_rights || token_accords
 
-    case credentials_correct of
-        True -> do
-                _ <- removePictureFromPost postID pictureID
-                return ("Picture removed from post", status200)
-        _ -> return ("Access denied", status401)
+    if credentials_correct then
+        (do _ <- removePictureFromPost postID pictureID
+            return ("Picture removed from post", status200))
+    else
+        return ("Access denied", status401)
 
 processListPostsRequest :: Request -> IO ByteString
 processListPostsRequest request = do
@@ -450,20 +454,19 @@ processUpdatePostRequest request = do
             Nothing -> return $ Left "Access denied"
             Just x -> checkPostAndTokenAccordanceNew (bytestringToInt . fromJust $ post_id) x
 
-    let check = (\_ -> check_all_parameters_nothing [shortName, category, text, mainPicture]) () >>= (\_ -> check_id) >>= (\_ -> check_category) >>= (\_ -> check_main_picture) >>= (\_ -> credentials_correct)
+    let check = checkAllParametersNothing [shortName, category, text, mainPicture] >> check_id >> check_category >> check_main_picture >> credentials_correct
 
-    let vals = []
-            ++ (if isNothing shortName then [] else [("short_name", fromJust shortName)])
-            ++ (if isNothing category then [] else [("category", fromJust category)])
-            ++ (if isNothing text then [] else [("text", fromJust text)])
-            ++ (if isNothing mainPicture then [] else [("main_picture", fromJust mainPicture)])
+    let vals = [("short_name", fromJust shortName) | isJust shortName]
+            ++ [("category", fromJust category) | isJust category]
+            ++ [("text", fromJust text) | isJust text]
+            ++ [("main_picture", fromJust mainPicture) | isJust mainPicture]
 
     case check of
         Left "Access denied" -> return ("Access denied", status401)
         Left x -> return (resultRequest "error" x, status400)
         _ -> do
             res <- updatePost (bytestringToInt . fromJust $ post_id) vals
-            return $ (resultRequest "ok" (toString res), status200)
+            return (resultRequest "ok" (toString res), status200)
 
 -- TAGS
 
