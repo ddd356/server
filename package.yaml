@@ -36,6 +36,9 @@ dependencies:
 - aeson
 - pbkdf
 - filepath
+- QuickCheck
+- http-conduit
+- async
 
 library:
   source-dirs: src
