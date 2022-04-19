@@ -35,3 +35,5 @@ Session.vim
 *.lock
 report.html
 log.log
+test/oldSpec.hs
+Session.vim
