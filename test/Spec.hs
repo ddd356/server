@@ -1,14 +1,20 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+-- TODO look implemented tests for a bot
 import qualified Control.Concurrent.Async as Async (withAsync, cancel)
 import qualified Test.QuickCheck as Q (quickCheck, quickCheckWith, Args(..), stdArgs, Property(..))
 import qualified Test.QuickCheck.Monadic as QM (monadicIO, run, assert)
 import qualified Network.Wai.Handler.Warp as W (run)
 import qualified App as A (app)
-import qualified Control.Exception.Base as EB (catch)
-import qualified Control.Exception as E (SomeException(..))
+import qualified Control.Exception.Base as EB (catch, throw)
+import qualified Control.Exception as E (SomeException(..), Exception)
+import Database.PostgreSQL.Simple ( SqlError(..), FormatError(..), QueryError(..), ResultError(..), ExecStatus(..) )
 
 prop_CreateTestDatabase :: Q.Property
 prop_CreateTestDatabase = QM.monadicIO $ do
-        result <- QM.run $ EB.catch ( return True ) ( \e -> return False  )
+        -- result <- QM.run $ EB.catch ( return True ) ( \e -> do putStrLn ("Caugh " ++ show (e :: QueryExceptions) ) ; return False  )
+        -- TODO implement EB.catches for all query exceptions
+        result <- QM.run $ EB.catch ( EB.throw $ SqlError "" EmptyQuery "" "" "" ) ( \e -> do putStrLn ("Caugh " ++ show (e :: SqlError ) ) ; return False  )
         QM.assert result
 --(e :: E.SomeException)
 

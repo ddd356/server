@@ -58,6 +58,7 @@ let &cpo=s:cpo_save
 unlet s:cpo_save
 set autoindent
 set expandtab
+set guicursor=n-v-c:block-Cursor/lCursor,ve:ver35-Cursor,o:hor50-Cursor,i-ci:ver25-Cursor/lCursor,r-cr:hor20-Cursor/lCursor,sm:block-Cursor-blinkwait175-blinkoff150-blinkon175,a:blinkon0
 set guifont=Source_Code_Pro:h11:cANSI:qDRAFT
 set helplang=ru
 set hlsearch
@@ -77,7 +78,7 @@ endif
 set shortmess=aoO
 argglobal
 %argdel
-edit src\SQL.hs
+edit src\App.hs
 set splitbelow splitright
 wincmd _ | wincmd |
 split
@@ -95,9 +96,9 @@ set winheight=1
 set winminwidth=0
 set winwidth=1
 exe '1resize ' . ((&lines * 22 + 23) / 47)
-exe 'vert 1resize ' . ((&columns * 58 + 58) / 117)
+exe 'vert 1resize ' . ((&columns * 51 + 51) / 102)
 exe '2resize ' . ((&lines * 22 + 23) / 47)
-exe 'vert 2resize ' . ((&columns * 58 + 58) / 117)
+exe 'vert 2resize ' . ((&columns * 50 + 51) / 102)
 exe '3resize ' . ((&lines * 22 + 23) / 47)
 argglobal
 setlocal keymap=
@@ -187,7 +188,7 @@ setlocal norightleft
 setlocal rightleftcmd=search
 setlocal noscrollbind
 setlocal scrolloff=-1
-setlocal shiftwidth=8
+setlocal shiftwidth=4
 setlocal noshortname
 setlocal showbreak=
 setlocal sidescrolloff=-1
@@ -224,15 +225,15 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 252 - ((16 * winheight(0) + 11) / 22)
+let s:l = 1 - ((0 * winheight(0) + 11) / 22)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-252
-normal! 03|
+1
+normal! 0
 wincmd w
 argglobal
-if bufexists("test\oldSpec.hs") | buffer test\oldSpec.hs | else | edit test\oldSpec.hs | endif
+if bufexists("src\SQL.hs") | buffer src\SQL.hs | else | edit src\SQL.hs | endif
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
@@ -357,12 +358,12 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 12 - ((2 * winheight(0) + 11) / 22)
+let s:l = 244 - ((16 * winheight(0) + 11) / 22)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-12
-normal! 0
+244
+normal! 018|
 wincmd w
 argglobal
 if bufexists("test\Spec.hs") | buffer test\Spec.hs | else | edit test\Spec.hs | endif
@@ -490,21 +491,23 @@ setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 11 - ((10 * winheight(0) + 11) / 22)
+let s:l = 16 - ((11 * winheight(0) + 11) / 22)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-11
-normal! 061|
+16
+normal! 033|
 wincmd w
 3wincmd w
 exe '1resize ' . ((&lines * 22 + 23) / 47)
-exe 'vert 1resize ' . ((&columns * 58 + 58) / 117)
+exe 'vert 1resize ' . ((&columns * 51 + 51) / 102)
 exe '2resize ' . ((&lines * 22 + 23) / 47)
-exe 'vert 2resize ' . ((&columns * 58 + 58) / 117)
+exe 'vert 2resize ' . ((&columns * 50 + 51) / 102)
 exe '3resize ' . ((&lines * 22 + 23) / 47)
 tabnext 1
 badd +1 src\SQL.hs
+badd +12 test\oldSpec.hs
+badd +0 test\Spec.hs
 badd +45 app\Main.hs
 badd +3 src\SQL\auth\addNewToken.sql
 badd +453 src\RequestProcessors.hs
@@ -552,8 +555,6 @@ badd +29 src\Random.hs
 badd +98 ~\Desktop\curl.txt
 badd +25 src\SQL\Handle.hs
 badd +1 src\App.hs
-badd +0 test\Spec.hs
-badd +0 test\oldSpec.hs
 badd +1 src\
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0
   silent exe 'bwipe ' . s:wipebuf
