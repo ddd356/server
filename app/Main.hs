@@ -2,6 +2,7 @@
 
 module Main where
 
+import App
 import Control.Monad (join, unless, when)
 import Data.ByteString.Lazy (fromStrict)
 import Data.Maybe (fromMaybe)
@@ -14,8 +15,6 @@ import RequestProcessors
 import SQL
 import System.Directory (doesFileExist)
 import System.Environment (getArgs)
-import App
-
 
 main :: IO ()
 main = do
@@ -25,7 +24,7 @@ main = do
   args <- getArgs
 
   -- create database, if argument -create-db exists
-  when ("-create-db" `elem` args) createNewsDb
+  when ("-ereate-db" `elem` args) createNewsDb
 
   -- update database, if argument -update-db exists
   when ("-update-db" `elem` args) updateNewsDb

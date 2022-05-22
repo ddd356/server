@@ -3,12 +3,15 @@
 module RequestProcessors where
 
 import Control.Monad (join)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Reader (ReaderT, asks, runReaderT)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 (readInt)
 import Data.ByteString.Lazy (toStrict)
 import Data.ByteString.UTF8 (toString)
 import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Database.PostgreSQL.Simple.Time (parseLocalTime)
+import Env (Env (..))
 import JSON (resultCategoriesList, resultPicturesList, resultPostsList, resultRequest, resultUsersList)
 import Log.Handle
 import Log.Impl.BotLog as Log
@@ -31,45 +34,54 @@ checkAllParametersNothing ps = if all isNothing ps then Left "All parameters emp
 
 -- AUTH
 
-processAuthRequest :: Request -> IO (ByteString, Status)
+processAuthRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAuthRequest request = do
   let query = queryString request
   let login = fromMaybe "" . join $ lookup "login" query
   let password = fromMaybe "" . join $ lookup "password" query
 
-  credentials_correct <- checkCredentials login password
+  credentials_correct <- do
+    f <- asks f_checkCredentials
+    liftIO $ f login password
 
-  Log.log DEBUG ("Credentials_correct=" ++ show credentials_correct)
+  liftIO $ Log.log DEBUG ("Credentials_correct=" ++ show credentials_correct)
 
-  token <- generateToken login
+  token <- do
+    f <- asks f_generateToken
+    liftIO $ f login
 
   if credentials_correct
     then
       ( do
-          addNewToken login token
+          f <- asks f_addNewToken
+          liftIO $ f login token
           return (token, status200)
       )
     else return ("Authorization fails", status401)
 
 -- USERS
 
-processListUsersRequest :: Request -> IO ByteString
+processListUsersRequest :: Request -> ReaderT Env (IO) (ByteString)
 processListUsersRequest request = do
   -- get token from request
   let frm = fst . fromMaybe (defaultFrom, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
   let lmt = min defaultLimit . fst . fromMaybe (defaultLimit, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
 
-  res <- getUsersList frm lmt
-  total <- totalNumberOfRowsInTable "users"
+  res <- do
+    f <- asks f_getUsersList
+    liftIO $ f frm lmt
+  total <- do
+    f <- asks f_totalNumberOfRowsInTable
+    liftIO $ f "users"
   return $ resultUsersList res (total, lmt, frm)
 
-processAddUsersRequest :: Request -> IO (ByteString, Status)
+processAddUsersRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAddUsersRequest request = do
   -- get params from request
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let firstname = fromMaybe "" . join $ lookup "firstname" $ queryString request
   let lastname = fromMaybe "" . join $ lookup "lastname" $ queryString request
-  res <- parseRequestBody lbsBackEnd request
+  res <- liftIO $ parseRequestBody lbsBackEnd request
   let avatar = case res of
         ([], []) -> ""
         _ -> toStrict . fileContent . snd . head . snd $ res
@@ -79,8 +91,12 @@ processAddUsersRequest request = do
   let can_create_posts = read . toString . fromMaybe "False" . join $ lookup "can_create_posts" $ queryString request
 
   -- check credentials for admin rights
-  check_token <- checkAdminRightsNew token
-  check_login <- loginNotExists login
+  check_token <- do
+    f <- asks f_checkAdminRightsNew
+    liftIO $ f token
+  check_login <- do
+    f <- asks f_loginNotExists
+    liftIO $ f login
 
   let check = check_token >> check_login
 
@@ -88,71 +104,91 @@ processAddUsersRequest request = do
     Left "Access denied" -> return ("", status404)
     Left x -> return (resultRequest "error" x, status400)
     _ -> do
-      _ <- addUser firstname lastname avatar login password admin can_create_posts
+      _ <- do
+        f <- asks f_addUser
+        liftIO $ f firstname lastname avatar login password admin can_create_posts
       return (resultRequest "ok" "User added", status200)
 
 -- AUTHORS
 
-processAddAuthorRequest :: Request -> IO (ByteString, Status)
+processAddAuthorRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAddAuthorRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let login = fromMaybe "" . join $ lookup "login" $ queryString request
   let description = fromMaybe "" . join $ lookup "description" $ queryString request
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkLoginAndTokenAccordance login token
+  admin_rights <- do
+    f <- asks f_checkAdminRights
+    f token
+  token_accords <- do
+    f <- asks f_checkLoginAndTokenAccordance
+    f login token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- addAuthor login description
+          _ <- do
+            f <- asks f_addAuthor login description
+            f login description
           return (resultRequest "ok" "Author added", status200)
       )
     else return ("Access denied", status401)
 
-processDeleteAuthorRequest :: Request -> IO (ByteString, Status)
+processDeleteAuthorRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processDeleteAuthorRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let login = fromMaybe "" . join $ lookup "login" $ queryString request
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkLoginAndTokenAccordance login token
+  admin_rights <- do
+    f <- asks f_checkAdminRights
+    f token
+  token_accords <- do
+    f <- asks f_checkLoginAndTokenAccordance
+    f login token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- deleteAuthor login
+          _ <- do
+            f <- asks f_deleteAuthor
+            f login
           return (resultRequest "ok" "Author deleted", status200)
       )
     else return ("Access denied", status401)
 
 -- PICTURES
 
-processAddPictureRequest :: Request -> IO ByteString
+processAddPictureRequest :: Request -> ReaderT Env (IO) ByteString
 processAddPictureRequest request = do
   -- get params from request
   res <- parseRequestBody lbsBackEnd request
   let picture = toStrict . fileContent . snd . head . snd $ res
 
   -- add a new picture
-  _ <- addPicture picture
+  _ <- do
+    f <- asks f_addPicture
+    liftIO $ f picture
   return $ resultRequest "ok" ""
 
-processListPicturesRequest :: Request -> IO ByteString
+processListPicturesRequest :: Request -> ReaderT Env (IO) ByteString
 processListPicturesRequest request = do
   -- get params from request
   let frm = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "from" $ queryString request :: Int
   let lmt = min defaultLimit . fst . fromMaybe (2, "") . readInt . fromMaybe "" . join $ lookup "limit" $ queryString request :: Int
 
-  res <- getPicturesList frm lmt
-  total <- totalNumberOfRowsInTable "pictures"
+  res <- do
+    f <- asks f_getPicturesList
+    liftIO $ f frm lmt
+  total <- do
+    f <- asks f_totalNumberOfRowsInTable
+    liftIO $ f "pictures"
   return $ resultPicturesList res (total, lmt, frm)
 
-processGetPictureRequest :: Request -> IO ByteString
+processGetPictureRequest :: Request -> ReaderT Env (IO) ByteString
 processGetPictureRequest request = do
   let query = queryString request
 
@@ -162,19 +198,22 @@ processGetPictureRequest request = do
     Nothing -> return $ Left "id must be set"
     Just x -> case readInt x of
       Nothing -> return $ Left "id incorrect"
-      _ -> pictureIdExists . bytestringToInt . fromJust $ picture_id
+      _ -> do
+        f <- asks f_pictureIdExists
+        liftIO . f . bytestringToInt . fromJust $ picture_id
 
   let check = check_id
 
   case check of
     Left x -> return $ resultRequest "error" x
     _ -> do
-      getPicture . bytestringToInt . fromJust $ picture_id
+      f <- asks f_getPicture
+      liftIO . f . bytestringToInt . fromJust $ picture_id
 
 -- CATEGORIES
 
 -- add
-processAddCategoryRequest :: Request -> IO (ByteString, Status)
+processAddCategoryRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAddCategoryRequest request = do
   -- get params from request
   let name = fromMaybe "" . join $ lookup "name" $ queryString request
@@ -182,7 +221,9 @@ processAddCategoryRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
 
   -- check credentials for admin rights
-  credentials_correct <- checkAdminRights token
+  credentials_correct <- 
+    f <- f_checkAdminRights
+    liftIO $ f token
 
   if credentials_correct
     then
@@ -249,32 +290,39 @@ processUpdateCategoryRequest request = do
 
 -- POSTS
 
-processAddPostRequest :: Request -> IO (ByteString, Status)
+processAddPostRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAddPostRequest request = do
   -- get params from request
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
-  --let login = fromMaybe "" . join $ lookup "login" $ queryString request
   let athr = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "author" $ queryString request :: Int
   let shortName = fromMaybe "" . join $ lookup "shortname" $ queryString request
   let category = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "category" $ queryString request :: Int
   let text = fromMaybe "" . join $ lookup "text" $ queryString request
   let mainPicture = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "main_picture" $ queryString request :: Int
 
-  can_create_posts <- canCreatePosts token
+  can_create_posts <- do
+    f <- asks f_canCreatePosts
+    liftIO $ f token
 
   case can_create_posts of
     Left _ -> return ("Access denied", status401)
     _ -> do
-      addPost shortName athr category text mainPicture
+      _ <- do
+        f <- asks f_addPost
+        f shortName athr category text mainPicture
       return ("Post added", status200)
 
-processFromDraftRequest :: Request -> IO (ByteString, Status)
+processFromDraftRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processFromDraftRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkPostAndTokenAccordance postID token
+  admin_rights <- do
+    f <- asks f_checkAdminRights
+    liftIO $ f token
+  token_accords <- do
+    f <- asks f_checkPostAndTokenAccordance
+    liftIO $ f postID token
 
   let credentials_correct = admin_rights || token_accords
 
@@ -286,101 +334,106 @@ processFromDraftRequest request = do
       )
     else return ("Access denied", status401)
 
-processToDraftRequest :: Request -> IO (ByteString, Status)
+-- no
+processToDraftRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processToDraftRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkPostAndTokenAccordance postID token
+  admin_rights <- liftIO $ checkAdminRights token
+  token_accords <- liftIO $ checkPostAndTokenAccordance postID token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- toDraft postID
+          _ <- liftIO $ toDraft postID
           return ("Post moved to drafts", status200)
       )
     else return ("Access denied", status401)
 
-processAddTagToPostRequest :: Request -> IO (ByteString, Status)
+-- no
+processAddTagToPostRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAddTagToPostRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
   let tagID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "tag_id" $ queryString request :: Int
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkPostAndTokenAccordance postID token
+  admin_rights <- liftIO $ checkAdminRights token
+  token_accords <- liftIO $ checkPostAndTokenAccordance postID token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- addTagToPost postID tagID
+          _ <- liftIO $ addTagToPost postID tagID
           return ("Tag added to post", status200)
       )
     else return ("Access denied", status401)
 
-processRemoveTagFromPostRequest :: Request -> IO (ByteString, Status)
+-- no
+processRemoveTagFromPostRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processRemoveTagFromPostRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
   let tagID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "tag_id" $ queryString request :: Int
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkPostAndTokenAccordance postID token
+  admin_rights <- liftIO $ checkAdminRights token
+  token_accords <- liftIO $ checkPostAndTokenAccordance postID token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- removeTagFromPost postID tagID
+          _ <- liftIO $ removeTagFromPost postID tagID
           return ("Tag removed from post", status200)
       )
     else return ("Access denied", status401)
-
-processAddPictureToPostRequest :: Request -> IO (ByteString, Status)
+-- no
+processAddPictureToPostRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processAddPictureToPostRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
   let pictureID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "picture_id" $ queryString request :: Int
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkPostAndTokenAccordance postID token
+  admin_rights <- liftIO $ checkAdminRights token
+  token_accords <- liftIO $ checkPostAndTokenAccordance postID token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- addPictureToPost postID pictureID
+          _ <- liftIO $ addPictureToPost postID pictureID
           return ("Picture added to post", status200)
       )
     else return ("Access denied", status401)
 
-processRemovePictureFromPostRequest :: Request -> IO (ByteString, Status)
+-- no
+processRemovePictureFromPostRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processRemovePictureFromPostRequest request = do
   let token = fromMaybe "" . join $ lookup "token" $ queryString request
   let postID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "post_id" $ queryString request :: Int
   let pictureID = fst . fromMaybe (0, "") . readInt . fromMaybe "" . join $ lookup "picture_id" $ queryString request :: Int
 
-  admin_rights <- checkAdminRights token
-  token_accords <- checkPostAndTokenAccordance postID token
+  admin_rights <- liftIO $ checkAdminRights token
+  token_accords <- liftIO $ checkPostAndTokenAccordance postID token
 
   let credentials_correct = admin_rights || token_accords
 
   if credentials_correct
     then
       ( do
-          _ <- removePictureFromPost postID pictureID
+          _ <- liftIO $ removePictureFromPost postID pictureID
           return ("Picture removed from post", status200)
       )
     else return ("Access denied", status401)
 
-processListPostsRequest :: Request -> IO ByteString
+-- no
+processListPostsRequest :: Request -> ReaderT Env (IO) ByteString
 processListPostsRequest request = do
   -- get params from request
 
@@ -424,11 +477,12 @@ processListPostsRequest request = do
   let sp = SortingParameters sortBy
   let pp = PaginationParameters lmt frm
 
-  res <- getPostsList fp sp pp token showDraft
-  total <- totalNumberOfPosts fp
-  return $ resultPostsList res (total, lmt, frm)
+  res <- liftIO $ getPostsList fp sp pp token showDraft
+  total <- liftIO $ totalNumberOfPosts fp
+  return . liftIO $ resultPostsList res (total, lmt, frm)
 
-processUpdatePostRequest :: Request -> IO (ByteString, Status)
+-- no
+processUpdatePostRequest :: Request -> ReaderT Env (IO) (ByteString, Status)
 processUpdatePostRequest request = do
   -- get params from request
   let query = queryString request
@@ -451,17 +505,17 @@ processUpdatePostRequest request = do
     Nothing -> return $ Right ()
     Just x -> case readInt x of
       Nothing -> return $ Left "category incorrect"
-      _ -> categoryIdExists $ bytestringToInt . fromJust $ category
+      _ -> liftIO . categoryIdExists $ bytestringToInt . fromJust $ category
 
   check_main_picture <- case mainPicture of
     Nothing -> return $ Right ()
     Just x -> case readInt x of
       Nothing -> return $ Left "main_picture incorrect"
-      _ -> pictureIdExists $ bytestringToInt . fromJust $ mainPicture
+      _ -> liftIO . pictureIdExists $ bytestringToInt . fromJust $ mainPicture
 
   credentials_correct <- case token of
     Nothing -> return $ Left "Access denied"
-    Just x -> checkPostAndTokenAccordanceNew (bytestringToInt . fromJust $ post_id) x
+    Just x -> liftIO $ checkPostAndTokenAccordanceNew (bytestringToInt . fromJust $ post_id) x
 
   let check = checkAllParametersNothing [shortName, category, text, mainPicture] >> check_id >> check_category >> check_main_picture >> credentials_correct
 
@@ -475,14 +529,16 @@ processUpdatePostRequest request = do
     Left "Access denied" -> return ("Access denied", status401)
     Left x -> return (resultRequest "error" x, status400)
     _ -> do
-      res <- updatePost (bytestringToInt . fromJust $ post_id) vals
+      res <- liftIO $ updatePost (bytestringToInt . fromJust $ post_id) vals
       return (resultRequest "ok" (toString res), status200)
 
 -- TAGS
 
-processAddTagRequest :: Request -> IO ByteString
+-- no
+processAddTagRequest :: Request -> ReaderT Env (IO) ByteString
 processAddTagRequest request = do
   -- get params from request
   let name = fromMaybe "" . join $ lookup "name" $ queryString request
-
-  addTag name
+  _ <- do
+    f <- asks f_addTag
+    liftIO $ f name

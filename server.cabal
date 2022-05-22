@@ -28,6 +28,7 @@ library
       App
       Conf.Impl.Common
       Conf.Reader
+      Env
       JSON
       Lib
       Log.Handle
@@ -51,11 +52,13 @@ library
     , filepath
     , http-conduit
     , http-types
+    , mtl
     , pbkdf
     , postgresql-simple
     , random
     , text
     , time
+    , transformers
     , utf8-string
     , wai
     , wai-extra
@@ -80,12 +83,14 @@ executable server-exe
     , filepath
     , http-conduit
     , http-types
+    , mtl
     , pbkdf
     , postgresql-simple
     , random
     , server
     , text
     , time
+    , transformers
     , utf8-string
     , wai
     , wai-extra
@@ -111,12 +116,14 @@ test-suite server-test
     , filepath
     , http-conduit
     , http-types
+    , mtl
     , pbkdf
     , postgresql-simple
     , random
     , server
     , text
     , time
+    , transformers
     , utf8-string
     , wai
     , wai-extra

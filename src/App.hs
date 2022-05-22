@@ -3,8 +3,11 @@
 module App where
 
 import Control.Monad (join, unless, when)
+import Control.Monad.Trans.Reader (runReaderT)
+import Data.ByteString (ByteString)
 import Data.ByteString.Lazy (fromStrict)
 import Data.Maybe (fromMaybe)
+import Env (Env (..))
 import Log.Handle
 import Log.Impl.BotLog as Log
 import Network.HTTP.Types
@@ -15,13 +18,17 @@ import SQL
 import System.Directory (doesFileExist)
 import System.Environment (getArgs)
 
+env :: Env
+env =
+  Env checkCredentials generateToken addNewToken getUsersList totalNumberOfRowsInTable checkAdminRightsNew loginNotExists addUser checkAdminRights checkLoginAndTokenAccordance addAuthor deleteAuthor addPicture getUsersList pictureIdExists getPicture canCreatePosts addPost
+
 app :: Application
 app request respond
   -- POSTS
 
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add" = do
     Log.log DEBUG ("Request: " ++ show request)
-    (response_text, status) <- processAddPostRequest request
+    (response_text, status) <- runReaderT (processAddPostRequest request) env
     respond $
       responseLBS
         status
@@ -31,7 +38,7 @@ app request respond
     Log.log DEBUG ("Request: " ++ show request)
 
     putStrLn "Processing from draft request"
-    (response_text, status) <- processFromDraftRequest request
+    (response_text, status) <- runReaderT (processFromDraftRequest request) env
     respond $
       responseLBS
         status
@@ -40,14 +47,14 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "to_draft" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processToDraftRequest request
+    (response_text, status) <- runReaderT (processToDraftRequest request) env
     respond $
       responseLBS
         status
         [("Content-Type", "text/plain")]
         (fromStrict response_text)
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add_tag" = do
-    (response_text, status) <- processAddTagToPostRequest request
+    (response_text, status) <- runReaderT (processAddTagToPostRequest request) env
 
     Log.log DEBUG ("Request: " ++ show request)
 
@@ -59,7 +66,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "remove_tag" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processRemoveTagFromPostRequest request
+    (response_text, status) <- runReaderT (processRemoveTagFromPostRequest request) env
     respond $
       responseLBS
         status
@@ -68,7 +75,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "add_picture" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processAddPictureToPostRequest request
+    (response_text, status) <- runReaderT (processAddPictureToPostRequest request) env
     respond $
       responseLBS
         status
@@ -77,7 +84,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "remove_picture" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processRemovePictureFromPostRequest request
+    (response_text, status) <- runReaderT (processRemovePictureFromPostRequest request) env
     respond $
       responseLBS
         status
@@ -86,7 +93,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "list" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processListPostsRequest request
+    response_text <- runReaderT (processListPostsRequest request) env
     respond $
       responseLBS
         status200
@@ -95,7 +102,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "posts" && action == "update" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processUpdatePostRequest request
+    (response_text, status) <- runReaderT (processUpdatePostRequest request) env
     respond $
       responseLBS
         status
@@ -108,7 +115,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "auth" && action == "auth" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processAuthRequest request
+    (response_text, status) <- runReaderT (processAuthRequest request) env
     respond $
       responseLBS
         status
@@ -121,7 +128,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "users" && action == "list" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processListUsersRequest request
+    response_text <- runReaderT (processListUsersRequest request) env
     respond $
       responseLBS
         status200
@@ -132,7 +139,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "users" && action == "add" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processAddUsersRequest request
+    (response_text, status) <- runReaderT (processAddUsersRequest request) env
     respond $
       responseLBS
         status
@@ -145,7 +152,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "add" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processAddAuthorRequest request
+    (response_text, status) <- runReaderT (processAddAuthorRequest request) env
     respond $
       responseLBS
         status
@@ -156,7 +163,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "authors" && action == "delete" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processDeleteAuthorRequest request
+    (response_text, status) <- runReaderT (processDeleteAuthorRequest request) env
     respond $
       responseLBS
         status
@@ -169,7 +176,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "add" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processAddPictureRequest request
+    response_text <- runReaderT (processAddPictureRequest request) env
     respond $
       responseLBS
         status200
@@ -180,7 +187,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "list" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processListPicturesRequest request
+    response_text <- runReaderT (processListPicturesRequest request) env
     respond $
       responseLBS
         status200
@@ -191,7 +198,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "pictures" && action == "get_picture" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processGetPictureRequest request
+    response_text <- runReaderT (processGetPictureRequest request) env
     respond $
       responseLBS
         status200
@@ -204,7 +211,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "add" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processAddCategoryRequest request
+    (response_text, status) <- runReaderT (processAddCategoryRequest request) env
     respond $
       responseLBS
         status
@@ -215,7 +222,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "list" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processListCategoriesRequest request
+    response_text <- runReaderT (processListCategoriesRequest request) env
     respond $
       responseLBS
         status200
@@ -226,7 +233,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "categories" && action == "update" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    (response_text, status) <- processUpdateCategoryRequest request
+    (response_text, status) <- runReaderT (processUpdateCategoryRequest request) env
     respond $
       responseLBS
         status
@@ -239,7 +246,7 @@ app request respond
   | length (pathInfo request) == 1 && last (pathInfo request) == "tags" && action == "add" = do
     Log.log DEBUG ("Request: " ++ show request)
 
-    response_text <- processAddTagRequest request
+    response_text <- runReaderT (processAddTagRequest request) env
     respond $
       responseLBS
         status200
@@ -284,4 +291,3 @@ app request respond
   where
     query = queryString request
     action = fromMaybe "" . join $ lookup "action" query
-
