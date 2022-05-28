@@ -87,8 +87,14 @@ test_checkAdminRights token = return $ if token == "correct_token" then True els
 test_checkLoginAndTokenAccordance :: ByteString -> ByteString -> IO Bool
 test_checkLoginAndTokenAccordance login token = return $ if login = "test" && token == "correct_token" then True else False
 
-addAuthor :: ByteString -> ByteString -> IO ByteString
-test_addAuthor login _ = return case login == "test" then "Author added"
+test_addAuthor :: ByteString -> ByteString -> IO ByteString
+test_addAuthor login _ = return case login == "test" then "Author added" else ""
+
+test_deleteAuthor :: ByteString -> IO ByteString
+test_deleteAuthor login = return case login == "test" then "Author deleted" else ""
+
+test_addPicture :: ByteString -> IO ByteString
+test_addPicture _ =
 
 prop_processAuthRequestCorrect :: Q.Property
 prop_processAuthRequestCorrect =
